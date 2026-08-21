@@ -1,0 +1,3 @@
+opencv-python
+numpy
+websockets>=15.0,<16.0

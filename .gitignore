@@ -1,0 +1,107 @@
+# Temp files
+temp/
+
+# Unity generated files
+simulation/RoomSimulation/Library/
+simulation/RoomSimulation/Temp/
+simulation/RoomSimulation/Obj/
+simulation/RoomSimulation/Build/
+simulation/RoomSimulation/Builds/
+simulation/RoomSimulation/Logs/
+simulation/RoomSimulation/UserSettings/
+
+# Unity generated cache
+simulation/RoomSimulation/MemoryCaptures/
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python tooling / caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Build / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment / Secrets
+.env
+.env.*
+!.env.example
+
+# Local configuration
+*.local
+
+# Logs / Runtime
+*.log
+logs/
+tmp/
+temp/
+
+# Runtime files
+*.pid
+*.pid.lock
+
+# Node.js 
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build output
+.npm/
+.next/
+.nuxt/
+dist/
+
+# General build / generated files
+bin/
+obj/
+out/
+target/
+
+# Archives
+*.zip
+*.tar
+*.tar.gz
+*.7z
+*.rar
+
+# IDE / Local project files
+*.iml
+*.user
+*.userprefs
+*.suo
+*.ncb
+
+# Coverage / profiling
+coverage/
+htmlcov/
+*.prof
