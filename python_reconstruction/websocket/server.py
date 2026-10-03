@@ -1,9 +1,14 @@
 import asyncio
 import websockets
 
-from cameras.receiver import parse_packet, decode_image
+from cameras.receiver import (
+    parse_packet,
+    decode_image,
+    parse_metadata
+)
 from cameras.display import display_frame
 from config.settings import HOST, PORT
+from processing.helpers import calculate_intrinsics
 
 
 async def handle_client(websocket):
@@ -11,33 +16,62 @@ async def handle_client(websocket):
     print("Unity client connected")
 
     try:
+        camera_metadata = {}
 
         async for message in websocket:
+            # Text message → Metadata
+            if isinstance(message, str):
 
-            if not isinstance(message, bytes):
-                print(f"Received: {message}")
+                metadata = parse_metadata(message)
+
+                if metadata is not None:
+
+                    camera_id = metadata["camera_id"]
+
+                    width = metadata["width"]
+                    height = metadata["height"]
+                    fov = metadata["fov"]
+
+                    K = calculate_intrinsics(
+                        width,
+                        height,
+                        fov
+                    )
+
+                    metadata["intrinsics"] = K
+
+                    camera_metadata[camera_id] = metadata
+
+                    print(
+                        f"Received metadata for Camera {camera_id}"
+                    )
+
+                    print(metadata)
+
+                else:
+
+                    print(f"Received text: {message}")
+
                 continue
 
-            camera_id, jpeg_data = parse_packet(message)
+            # Binary message → RGB frame
+            if isinstance(message, bytes):
 
-            if camera_id is None:
-                print("Invalid packet")
-                continue
+                camera_id, jpeg_data = parse_packet(message)
 
-            frame = decode_image(jpeg_data)
+                if camera_id is None:
+                    print("Invalid binary packet")
+                    continue
 
-            if frame is None:
-                print(
-                    f"Failed to decode image from Camera {camera_id}"
-                )
-                continue
+                frame = decode_image(jpeg_data)
 
-            print(
-                f"Camera {camera_id}: "
-                f"{frame.shape[1]}x{frame.shape[0]}"
-            )
+                if frame is None:
+                    print(
+                        f"Failed to decode image from Camera {camera_id}"
+                    )
+                    continue
 
-            display_frame(camera_id, frame)
+                display_frame(camera_id, frame)
 
     except websockets.ConnectionClosed:
 

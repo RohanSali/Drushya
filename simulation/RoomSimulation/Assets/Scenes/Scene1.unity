@@ -240,6 +240,10 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 221036234}
+  - component: {fileID: 221036235}
+  - component: {fileID: 221036238}
+  - component: {fileID: 221036237}
+  - component: {fileID: 221036236}
   m_Layer: 0
   m_Name: CameraStreaming
   m_TagString: Untagged
@@ -262,6 +266,82 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &221036235
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 221036233}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ffd99ea919abd2b48a955083cb6fa12c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CameraStreamer
+  targetCamera: {fileID: 1165806725}
+  width: 640
+  height: 480
+  jpegQuality: 75
+  targetFPS: 15
+  cameraId: 0
+  websocketClient: {fileID: 2127967420}
+--- !u!114 &221036236
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 221036233}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ffd99ea919abd2b48a955083cb6fa12c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CameraStreamer
+  targetCamera: {fileID: 1464647776}
+  width: 640
+  height: 480
+  jpegQuality: 75
+  targetFPS: 15
+  cameraId: 3
+  websocketClient: {fileID: 2127967420}
+--- !u!114 &221036237
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 221036233}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ffd99ea919abd2b48a955083cb6fa12c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CameraStreamer
+  targetCamera: {fileID: 233261503}
+  width: 640
+  height: 480
+  jpegQuality: 75
+  targetFPS: 15
+  cameraId: 2
+  websocketClient: {fileID: 2127967420}
+--- !u!114 &221036238
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 221036233}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ffd99ea919abd2b48a955083cb6fa12c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CameraStreamer
+  targetCamera: {fileID: 1289240005}
+  width: 640
+  height: 480
+  jpegQuality: 75
+  targetFPS: 15
+  cameraId: 1
+  websocketClient: {fileID: 2127967420}
 --- !u!1 &233261501
 GameObject:
   m_ObjectHideFlags: 0
@@ -274,6 +354,7 @@ GameObject:
   - component: {fileID: 233261503}
   - component: {fileID: 233261502}
   - component: {fileID: 233261505}
+  - component: {fileID: 233261506}
   m_Layer: 0
   m_Name: Camera_East
   m_TagString: Untagged
@@ -368,6 +449,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LookAtTarget
   target: {fileID: 1909461020}
+--- !u!114 &233261506
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 233261501}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3a56cf06279582c4ab65f5be1d80cb3d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CameraMetadata
+  cameraId: 2
+  targetCamera: {fileID: 233261503}
 --- !u!1 &326869539
 GameObject:
   m_ObjectHideFlags: 0
@@ -1365,6 +1460,7 @@ GameObject:
   - component: {fileID: 1165806725}
   - component: {fileID: 1165806724}
   - component: {fileID: 1165806727}
+  - component: {fileID: 1165806728}
   m_Layer: 0
   m_Name: Camera_North
   m_TagString: Untagged
@@ -1459,6 +1555,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LookAtTarget
   target: {fileID: 1909461020}
+--- !u!114 &1165806728
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1165806723}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3a56cf06279582c4ab65f5be1d80cb3d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CameraMetadata
+  cameraId: 0
+  targetCamera: {fileID: 1165806725}
 --- !u!1 &1183111165
 GameObject:
   m_ObjectHideFlags: 0
@@ -1583,6 +1693,7 @@ GameObject:
   - component: {fileID: 1289240005}
   - component: {fileID: 1289240004}
   - component: {fileID: 1289240007}
+  - component: {fileID: 1289240008}
   m_Layer: 0
   m_Name: Camera_South
   m_TagString: Untagged
@@ -1677,6 +1788,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LookAtTarget
   target: {fileID: 1909461020}
+--- !u!114 &1289240008
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1289240003}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3a56cf06279582c4ab65f5be1d80cb3d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CameraMetadata
+  cameraId: 1
+  targetCamera: {fileID: 1289240005}
 --- !u!1 &1321368329
 GameObject:
   m_ObjectHideFlags: 0
@@ -1803,6 +1928,7 @@ GameObject:
   - component: {fileID: 1464647776}
   - component: {fileID: 1464647775}
   - component: {fileID: 1464647778}
+  - component: {fileID: 1464647779}
   m_Layer: 0
   m_Name: Camera_West
   m_TagString: Untagged
@@ -1897,6 +2023,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LookAtTarget
   target: {fileID: 1909461020}
+--- !u!114 &1464647779
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1464647774}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3a56cf06279582c4ab65f5be1d80cb3d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CameraMetadata
+  cameraId: 3
+  targetCamera: {fileID: 1464647776}
 --- !u!1 &1620450357
 GameObject:
   m_ObjectHideFlags: 0

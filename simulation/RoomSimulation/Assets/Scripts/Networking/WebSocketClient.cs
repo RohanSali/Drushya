@@ -87,4 +87,20 @@ public class WebSocketClient : MonoBehaviour
 
         Debug.Log($"Sent binary data: {data.Length} bytes");
     }
+
+    public async System.Threading.Tasks.Task SendTextMessage(string message)
+    {
+        if (!IsConnected)
+        {
+            Debug.LogWarning(
+                "Cannot send text message: WebSocket is not connected."
+            );
+
+            return;
+        }
+
+        await websocket.SendText(message);
+
+        Debug.Log($"Sent text message: {message}");
+    }
 }

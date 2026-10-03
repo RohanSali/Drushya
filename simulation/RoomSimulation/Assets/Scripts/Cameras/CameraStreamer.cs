@@ -27,6 +27,10 @@ public class CameraStreamer : MonoBehaviour
     [SerializeField]
     private WebSocketClient websocketClient;
 
+    [Header("Metadata")]
+    [SerializeField]
+    private CameraMetadata cameraMetadata;
+
 
     private RenderTexture renderTexture;
     private Texture2D texture;
@@ -53,6 +57,24 @@ public class CameraStreamer : MonoBehaviour
         }
 
         Debug.Log("WebSocket ready. Starting camera capture.");
+
+        if (cameraMetadata != null)
+        {
+            string metadataJson = cameraMetadata.ToJson();
+
+            _ = websocketClient.SendTextMessage(metadataJson);
+
+            Debug.Log(
+                $"Sent metadata for Camera {cameraMetadata.CameraId}"
+            );
+        }
+        else
+        {
+            Debug.LogWarning(
+                $"CameraStreamer on {gameObject.name}: " +
+                "CameraMetadata is not assigned."
+            );
+        }
 
         // Create RenderTexture
         renderTexture = new RenderTexture(

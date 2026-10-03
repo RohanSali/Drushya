@@ -1,5 +1,22 @@
 import cv2
 import numpy as np
+import json
+
+def parse_metadata(message: str):
+    """
+    Parse a camera metadata JSON message.
+    """
+
+    try:
+        data = json.loads(message)
+
+    except json.JSONDecodeError:
+        return None
+
+    if data.get("type") != "camera_metadata":
+        return None
+
+    return data
 
 def parse_packet(message: bytes):
     """
