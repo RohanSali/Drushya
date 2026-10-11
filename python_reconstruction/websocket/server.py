@@ -3,22 +3,14 @@ import websockets
 
 from cameras.receiver import (
     parse_rgbd_packet,
-    parse_packet,
-    decode_image,
     parse_metadata
 )
 from cameras.display import display_frame
 from config.settings import HOST, PORT
 from processing.helpers import calculate_intrinsics
 
-from config.settings import (
-    FRAME_WIDTH,
-    FRAME_HEIGHT
-)
-
-# Latest RGB-D frame for each camera
+# Latest RGB-D frame for each camera and its metadata
 camera_frames = {}
-
 camera_metadata = {}
 
 async def handle_client(websocket):
@@ -33,38 +25,28 @@ async def handle_client(websocket):
                 metadata = parse_metadata(message)
 
                 if metadata is not None:
-
                     camera_id = metadata["camera_id"]
 
                     width = metadata["width"]
                     height = metadata["height"]
                     fov = metadata["fov"]
-
                     K = calculate_intrinsics(
                         width,
                         height,
                         fov
                     )
-
                     metadata["intrinsics"] = K
-
                     camera_metadata[camera_id] = metadata
 
-                    print(
-                        f"Received metadata for Camera {camera_id}"
-                    )
-
-                    print(metadata)
-
+                    print(f"Received metadata for Camera {camera_id}")
+                    # print(metadata)
                 else:
-
                     print(f"Received text: {message}")
 
                 continue
 
             # Binary message → RGB frame
             if isinstance(message, bytes):
-
                 rgbd_data = parse_rgbd_packet(message)
 
                 if rgbd_data is None:
@@ -72,7 +54,6 @@ async def handle_client(websocket):
 
                 camera_id = rgbd_data["camera_id"]
                 frame_id = rgbd_data["frame_id"]
-
                 rgb_frame = rgbd_data["rgb"]
                 depth_frame = rgbd_data["depth"]
 
@@ -90,36 +71,19 @@ async def handle_client(websocket):
                 #     f"Depth={depth_frame.shape}"
                 # )
 
-                print(
-                    f"[Storage] Camera={camera_id} "
-                    f"Frame={camera_frames[camera_id]['frame_id']} "
-                    f"RGB={camera_frames[camera_id]['rgb'].shape} "
-                    f"Depth={camera_frames[camera_id]['depth'].shape}"
-                )
+                # print(
+                #     f"[Storage] Camera={camera_id} "
+                #     f"Frame={camera_frames[camera_id]['frame_id']} "
+                #     f"RGB={camera_frames[camera_id]['rgb'].shape} "
+                #     f"Depth={camera_frames[camera_id]['depth'].shape}"
+                # )
 
                 if camera_id is None:
                     print("Invalid binary packet")
                     continue
 
-                #temp test
-                center_y = FRAME_HEIGHT // 2
-                center_x = FRAME_WIDTH // 2
 
-                center_depth = depth_frame[
-                    center_y,
-                    center_x
-                ]
-
-                # print(
-                #     f"[Depth] Camera={camera_id} "
-                #     f"Frame={frame_id} "
-                #     f"Center={center_depth:.3f}"
-                # )
-
-                display_frame(
-                    camera_id,
-                    rgb_frame
-                )
+                display_frame(camera_id, rgb_frame)
 
     except websockets.ConnectionClosed:
 

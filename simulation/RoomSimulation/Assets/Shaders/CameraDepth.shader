@@ -2,10 +2,7 @@ Shader "Custom/CameraDepth"
 {
     SubShader
     {
-        Tags
-        {
-            "RenderType" = "Opaque"
-        }
+        Tags { "RenderType" = "Opaque" }
 
         Pass
         {
@@ -28,7 +25,7 @@ Shader "Custom/CameraDepth"
             struct v2f
             {
                 float4 vertex : SV_POSITION;
-                float depth : TEXCOORD0;
+                float3 viewRay : TEXCOORD0;
             };
 
             v2f vert(appdata v)
@@ -37,21 +34,21 @@ Shader "Custom/CameraDepth"
 
                 o.vertex = UnityObjectToClipPos(v.vertex);
 
-                // Eye-space depth
+                // Transform the vertex into camera space.
                 float3 viewPos = UnityObjectToViewPos(v.vertex);
-                o.depth = -viewPos.z;
+
+                // Store the view-space position for interpolation.
+                o.viewRay = viewPos;
 
                 return o;
             }
 
             float4 frag(v2f i) : SV_Target
             {
-                return float4(
-                    i.depth,
-                    i.depth,
-                    i.depth,
-                    1.0
-                );
+                // Recover the interpolated camera-space position.
+                float depth = -i.viewRay.z;
+
+                return float4(depth, depth, depth, 1.0);
             }
 
             ENDCG

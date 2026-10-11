@@ -62,24 +62,6 @@ public class CameraStreamer : MonoBehaviour
 
         Debug.Log("WebSocket ready. Starting camera capture.");
 
-        if (cameraMetadata != null)
-        {
-            string metadataJson = cameraMetadata.ToJson();
-
-            _ = websocketClient.SendTextMessage(metadataJson);
-
-            Debug.Log(
-                $"Sent metadata for Camera {cameraMetadata.CameraId}"
-            );
-        }
-        else
-        {
-            Debug.LogWarning(
-                $"CameraStreamer on {gameObject.name}: " +
-                "CameraMetadata is not assigned."
-            );
-        }
-
         // Create RenderTexture
         renderTexture = new RenderTexture(
             width,
@@ -98,7 +80,26 @@ public class CameraStreamer : MonoBehaviour
             false
         );
 
+        // Assign the RenderTexture before generating metadata
         targetCamera.targetTexture = renderTexture;
+
+        if (cameraMetadata != null)
+        {
+            string metadataJson = cameraMetadata.ToJson();
+
+            _ = websocketClient.SendTextMessage(metadataJson);
+
+            Debug.Log(
+                $"Sent metadata for Camera {cameraMetadata.CameraId}"
+            );
+        }
+        else
+        {
+            Debug.LogWarning(
+                $"CameraStreamer on {gameObject.name}: " +
+                "CameraMetadata is not assigned."
+            );
+        }
 
         Debug.Log(
             $"CameraStreamer initialized for {targetCamera.name} " +
@@ -171,16 +172,11 @@ public class CameraStreamer : MonoBehaviour
                 (width / 2);
 
             Debug.Log(
-                $"[RGB-D] Camera={cameraId} " +
-                $"Frame={frameId} " +
-                $"DepthCenter={depthData[centerIndex]:F3}"
+                $"[RGB-D] Camera = {targetCamera.name} | " +
+                $"Camera Id = {cameraId} | " +
+                $"Frame = {frameId}"
             );
         }
-
-        Debug.Log(
-            $"Captured {targetCamera.name}: " +
-            $"{jpegData.Length} bytes JPEG"
-        );
 
         byte[] packet = CreateRGBDPacket(
             jpegData,
@@ -192,15 +188,6 @@ public class CameraStreamer : MonoBehaviour
         {
             _ = websocketClient.Send(packet);
         }
-        
-        Debug.Log(
-            $"[RGB-D Packet] " +
-            $"Camera={cameraId} " +
-            $"Frame={frameId} " +
-            $"RGB={jpegData.Length} bytes " +
-            $"Depth={depthData.Length * 2} bytes " +
-            $"Total={packet.Length} bytes"
-        );
 
         captured = true;
     }

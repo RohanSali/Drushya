@@ -1,35 +1,40 @@
-import math
-import numpy as np
-import open3d as o3d
 import cv2
+import numpy as np
+
 
 def calculate_intrinsics(width, height, vertical_fov_degrees):
     """
-    Calculate the ideal pinhole-camera intrinsic matrix
-    from image resolution and Unity's vertical FOV.
+    Calculate the intrinsic matrix from image size and vertical FOV.
+
+    Assumes:
+        - Square pixels
+        - No lens shift
+        - No custom projection matrix
+        - Principal point at the image center
     """
 
-    fov_y = math.radians(vertical_fov_degrees)
+    fov_rad = np.deg2rad(vertical_fov_degrees)
 
-    fy = (height / 2.0) / math.tan(fov_y / 2.0)
+    fy = (height / 2.0) / np.tan(fov_rad / 2.0)
 
-    fx = fy * (width / height)
-
+    fx = fy    # Square pixels: horizontal and vertical focal lengths are equal.
+    
     cx = width / 2.0
     cy = height / 2.0
 
-    K = np.array([
-        [fx, 0.0, cx],
-        [0.0, fy, cy],
-        [0.0, 0.0, 1.0]
-    ], dtype=np.float64)
-
-    return K
+    return np.array(
+        [
+            [fx, 0.0, cx],
+            [0.0, fy, cy],
+            [0.0, 0.0, 1.0],
+        ],
+        dtype=np.float64,
+    )
 
 
 def build_camera_to_world(position, right, up, forward):
     """
-    Build a camera-to-world homogeneous transformation matrix.
+    Build a 4x4 camera-to-world homogeneous transformation matrix.
 
     position, right, up, forward are 3-element vectors
     expressed in Unity world coordinates.
@@ -40,144 +45,77 @@ def build_camera_to_world(position, right, up, forward):
     up = np.asarray(up, dtype=np.float64)
     forward = np.asarray(forward, dtype=np.float64)
 
-    R = np.column_stack([
-        right,
-        up,
-        forward
-    ])
+    transform = np.eye(4, dtype=np.float64)
+    transform[:3, :3] = np.column_stack((right, up, forward))
+    transform[:3, 3] = position
 
-    T = np.eye(4, dtype=np.float64)
-
-    T[:3, :3] = R
-    T[:3, 3] = position
-
-    return T
+    return transform
 
 
-def camera_to_world(point_camera, camera_to_world):
+def camera_points_to_world(points_camera, transform):
     """
-    Transform a 3D camera-space point into world coordinates.
+    Transform an Nx3 array of camera-space points into world coordinates.
+
+    Args:
+        points_camera: Nx3 array using +X right, +Y up, +Z forward.
+        transform: 4x4 camera-to-world transformation matrix.
+
+    Returns:
+        Nx3 array of world-space points.
     """
+    points_camera = np.asarray(points_camera, dtype=np.float64)
 
-    point = np.array([
-        point_camera[0],
-        point_camera[1],
-        point_camera[2],
-        1.0
-    ], dtype=np.float64)
+    if points_camera.ndim != 2 or points_camera.shape[1] != 3:
+        raise ValueError("points_camera must have shape (N, 3)")
 
-    point_world = camera_to_world @ point
+    rotation = transform[:3, :3]
+    translation = transform[:3, 3]
 
-    return point_world[:3]
+    return (rotation @ points_camera.T).T + translation
 
-
-def project_point(point_camera, K):
-    """
-    Project a camera-space 3D point onto the image plane.
-    """
-
-    X, Y, Z = point_camera
-
-    if Z <= 0:
-        return None
-
-    fx = K[0, 0]
-    fy = K[1, 1]
-
-    cx = K[0, 2]
-    cy = K[1, 2]
-
-    u = fx * X / Z + cx
-    v = fy * Y / Z + cy
-
-    return np.array([u, v])
-
-
-def create_camera_geometry(position, right, up, forward, scale=0.5):
-    """
-    Create a simple Open3D coordinate frame for a camera.
-    """
-
-    frame = o3d.geometry.TriangleMesh.create_coordinate_frame(
-        size=scale,
-        origin=position
-    )
-
-    return frame
 
 def depth_to_point_cloud(
     depth_frame,
     intrinsic_matrix,
     rgb_frame=None,
     stride=2,
-    max_depth=50.0
+    max_depth=50.0,
 ):
     """
     Convert a depth image into a 3D point cloud.
 
-    Parameters
-    ----------
-    depth_frame : np.ndarray
-        Float depth map of shape (height, width).
-        Depth values are in Unity world units.
+    Parameters -
+        depth_frame : Float depth map of shape (height, width).
+        intrinsic_matrix : Camera intrinsic matrix K, shape (3, 3).
+        rgb_frame : Optional OpenCV BGR image of shape (height, width, 3).
+        stride : Pixel sampling interval. stride=2 processes every second pixel in each direction.
+        max_depth : Ignore points farther than this distance.
 
-    intrinsic_matrix : np.ndarray
-        Camera intrinsic matrix K, shape (3, 3).
-
-    rgb_frame : np.ndarray or None
-        Optional OpenCV BGR image of shape (height, width, 3).
-
-    stride : int
-        Pixel sampling interval. stride=2 processes every
-        second pixel in each direction.
-
-    max_depth : float
-        Ignore points farther than this distance.
-
-    Returns
-    -------
-    points : np.ndarray
-        3D points with shape (N, 3).
-
-    colors : np.ndarray or None
-        RGB colors normalized to [0, 1], shape (N, 3).
+    Returns -
+        points : 3D points with shape (N, 3).
+        colors : RGB colors normalized to [0, 1], shape (N, 3).
     """
-
     depth = np.asarray(depth_frame, dtype=np.float32)
 
     if depth.ndim != 2:
-        raise ValueError(
-            "Depth frame must be a 2D array."
-        )
-
+        raise ValueError("Depth frame must be a 2D array.")
     if stride < 1:
-        raise ValueError(
-            "Stride must be at least 1."
-        )
+        raise ValueError("Stride must be at least 1.")
 
     height, width = depth.shape
+    if rgb_frame is not None and rgb_frame.shape[:2] != (height, width):
+        raise ValueError("RGB and depth resolutions must match.")
 
-    if rgb_frame is not None:
-        if rgb_frame.shape[:2] != (height, width):
-            raise ValueError(
-                "RGB and depth resolutions must match."
-            )
-
-    # Extract camera intrinsics
     fx = intrinsic_matrix[0, 0]
     fy = intrinsic_matrix[1, 1]
     cx = intrinsic_matrix[0, 2]
     cy = intrinsic_matrix[1, 2]
 
-    # Sample pixels
     sampled_depth = depth[::stride, ::stride]
-
     v, u = np.indices(sampled_depth.shape)
-
     u = u * stride
     v = v * stride
 
-    # Remove invalid and excessively distant depths
     valid = (
         np.isfinite(sampled_depth)
         & (sampled_depth > 0)
@@ -188,26 +126,17 @@ def depth_to_point_cloud(
     v = v[valid].astype(np.float32)
     z = sampled_depth[valid]
 
-    # Back-project pixels into camera-space 3D points
-    x = (u - cx) * z / fx
+    # Horizontal sign is intentionally reversed to match the validated Unity view convention.
+    x = (cx - u) * z / fx
     y = (cy - v) * z / fy
-
     points = np.column_stack((x, y, z))
 
     colors = None
-
     if rgb_frame is not None:
-        sampled_rgb = rgb_frame[::stride, ::stride]
-
-        # OpenCV images use BGR; Open3D expects RGB.
         sampled_rgb = cv2.cvtColor(
-            sampled_rgb,
-            cv2.COLOR_BGR2RGB
+            rgb_frame[::stride, ::stride],
+            cv2.COLOR_BGR2RGB,
         )
-
-        colors = (
-            sampled_rgb[valid].astype(np.float32)
-            / 255.0
-        )
+        colors = sampled_rgb[valid].astype(np.float32) / 255.0
 
     return points, colors

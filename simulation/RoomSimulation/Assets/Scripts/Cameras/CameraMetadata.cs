@@ -82,7 +82,7 @@ public class CameraMetadata : MonoBehaviour
             return;
         }
 
-        PrintMetadata();
+        // PrintMetadata();
     }
 
     public void PrintMetadata()

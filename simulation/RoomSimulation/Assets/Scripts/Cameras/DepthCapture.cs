@@ -92,13 +92,12 @@ public class DepthCapture : MonoBehaviour
             return null;
         }
 
-        // Save current active RenderTexture
-        RenderTexture previous =
-            RenderTexture.active;
+        // Save the camera's current target and active RenderTexture
+        RenderTexture previousActive = RenderTexture.active;
+        RenderTexture previousCameraTarget = targetCamera.targetTexture;
 
-        // Render this specific camera
-        targetCamera.targetTexture =
-            depthRenderTexture;
+        // Render this specific camera into the depth RenderTexture
+        targetCamera.targetTexture = depthRenderTexture;
 
         targetCamera.RenderWithShader(
             depthMaterial.shader,
@@ -126,11 +125,9 @@ public class DepthCapture : MonoBehaviour
         float[] depthData =
             GetDepthData();
 
-        // Restore previous state
-        RenderTexture.active =
-            previous;
-
-        targetCamera.targetTexture = null;
+        // Restore the previous rendering state
+        RenderTexture.active = previousActive;
+        targetCamera.targetTexture = previousCameraTarget;
 
         return depthData;
     }
