@@ -2,6 +2,7 @@ import asyncio
 import websockets
 
 from cameras.receiver import (
+    parse_rgbd_packet,
     parse_packet,
     decode_image,
     parse_metadata
@@ -10,14 +11,21 @@ from cameras.display import display_frame
 from config.settings import HOST, PORT
 from processing.helpers import calculate_intrinsics
 
+from config.settings import (
+    FRAME_WIDTH,
+    FRAME_HEIGHT
+)
+
+# Latest RGB-D frame for each camera
+camera_frames = {}
+
+camera_metadata = {}
 
 async def handle_client(websocket):
 
     print("Unity client connected")
 
     try:
-        camera_metadata = {}
-
         async for message in websocket:
             # Text message → Metadata
             if isinstance(message, str):
@@ -57,26 +65,72 @@ async def handle_client(websocket):
             # Binary message → RGB frame
             if isinstance(message, bytes):
 
-                camera_id, jpeg_data = parse_packet(message)
+                rgbd_data = parse_rgbd_packet(message)
+
+                if rgbd_data is None:
+                    return
+
+                camera_id = rgbd_data["camera_id"]
+                frame_id = rgbd_data["frame_id"]
+
+                rgb_frame = rgbd_data["rgb"]
+                depth_frame = rgbd_data["depth"]
+
+                camera_frames[camera_id] = {
+                    "frame_id": frame_id,
+                    "rgb": rgb_frame,
+                    "depth": depth_frame
+                }
+
+                # print(
+                #     f"[RGB-D] "
+                #     f"Camera={camera_id} "
+                #     f"Frame={frame_id} "
+                #     f"RGB={rgb_frame.shape} "
+                #     f"Depth={depth_frame.shape}"
+                # )
+
+                print(
+                    f"[Storage] Camera={camera_id} "
+                    f"Frame={camera_frames[camera_id]['frame_id']} "
+                    f"RGB={camera_frames[camera_id]['rgb'].shape} "
+                    f"Depth={camera_frames[camera_id]['depth'].shape}"
+                )
 
                 if camera_id is None:
                     print("Invalid binary packet")
                     continue
 
-                frame = decode_image(jpeg_data)
+                #temp test
+                center_y = FRAME_HEIGHT // 2
+                center_x = FRAME_WIDTH // 2
 
-                if frame is None:
-                    print(
-                        f"Failed to decode image from Camera {camera_id}"
-                    )
-                    continue
+                center_depth = depth_frame[
+                    center_y,
+                    center_x
+                ]
 
-                display_frame(camera_id, frame)
+                # print(
+                #     f"[Depth] Camera={camera_id} "
+                #     f"Frame={frame_id} "
+                #     f"Center={center_depth:.3f}"
+                # )
+
+                display_frame(
+                    camera_id,
+                    rgb_frame
+                )
 
     except websockets.ConnectionClosed:
 
         print("Unity client disconnected")
 
+def get_camera_frame(camera_id):
+    """
+    Return the latest RGB-D frame for a camera.
+    Returns None if no frame has been received.
+    """
+    return camera_frames.get(camera_id)
 
 async def start_server():
 

@@ -184,7 +184,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 21cbd62d16740fb4e9802b2df306145a, type: 2}
+  - {fileID: 2100000, guid: 747626fa2ccb5e240bd4f3e16daa2b09, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -285,6 +285,8 @@ MonoBehaviour:
   targetFPS: 15
   cameraId: 0
   websocketClient: {fileID: 2127967420}
+  cameraMetadata: {fileID: 1165806728}
+  depthCapture: {fileID: 1165806729}
 --- !u!114 &221036236
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -304,6 +306,8 @@ MonoBehaviour:
   targetFPS: 15
   cameraId: 3
   websocketClient: {fileID: 2127967420}
+  cameraMetadata: {fileID: 1464647779}
+  depthCapture: {fileID: 1464647780}
 --- !u!114 &221036237
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -323,6 +327,8 @@ MonoBehaviour:
   targetFPS: 15
   cameraId: 2
   websocketClient: {fileID: 2127967420}
+  cameraMetadata: {fileID: 233261506}
+  depthCapture: {fileID: 233261507}
 --- !u!114 &221036238
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -342,6 +348,8 @@ MonoBehaviour:
   targetFPS: 15
   cameraId: 1
   websocketClient: {fileID: 2127967420}
+  cameraMetadata: {fileID: 1289240008}
+  depthCapture: {fileID: 1289240009}
 --- !u!1 &233261501
 GameObject:
   m_ObjectHideFlags: 0
@@ -355,6 +363,7 @@ GameObject:
   - component: {fileID: 233261502}
   - component: {fileID: 233261505}
   - component: {fileID: 233261506}
+  - component: {fileID: 233261507}
   m_Layer: 0
   m_Name: Camera_East
   m_TagString: Untagged
@@ -463,6 +472,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CameraMetadata
   cameraId: 2
   targetCamera: {fileID: 233261503}
+--- !u!114 &233261507
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 233261501}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 94f23136cf83da34683d3eb5303e58ce, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DepthCapture
+  targetCamera: {fileID: 233261503}
+  depthMaterial: {fileID: 2100000, guid: 87837efc6ca41b84baa14c6cb53782f2, type: 2}
+  width: 640
+  height: 480
+  cameraStreamer: {fileID: 221036235}
 --- !u!1 &326869539
 GameObject:
   m_ObjectHideFlags: 0
@@ -1461,6 +1487,7 @@ GameObject:
   - component: {fileID: 1165806724}
   - component: {fileID: 1165806727}
   - component: {fileID: 1165806728}
+  - component: {fileID: 1165806729}
   m_Layer: 0
   m_Name: Camera_North
   m_TagString: Untagged
@@ -1535,13 +1562,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1165806723}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 3, z: 4.9}
+  m_LocalRotation: {x: 0, y: 0.38268343, z: 0, w: 0.92387956}
+  m_LocalPosition: {x: 2.6, y: 2, z: 2.6}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 45, z: 0}
 --- !u!114 &1165806727
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1549,7 +1576,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1165806723}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 12a65fc1ca6709c4a85996807564b213, type: 3}
   m_Name: 
@@ -1569,6 +1596,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CameraMetadata
   cameraId: 0
   targetCamera: {fileID: 1165806725}
+--- !u!114 &1165806729
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1165806723}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 94f23136cf83da34683d3eb5303e58ce, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DepthCapture
+  targetCamera: {fileID: 1165806725}
+  depthMaterial: {fileID: 2100000, guid: 87837efc6ca41b84baa14c6cb53782f2, type: 2}
+  width: 640
+  height: 480
+  cameraStreamer: {fileID: 221036235}
 --- !u!1 &1183111165
 GameObject:
   m_ObjectHideFlags: 0
@@ -1694,6 +1738,7 @@ GameObject:
   - component: {fileID: 1289240004}
   - component: {fileID: 1289240007}
   - component: {fileID: 1289240008}
+  - component: {fileID: 1289240009}
   m_Layer: 0
   m_Name: Camera_South
   m_TagString: Untagged
@@ -1768,13 +1813,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1289240003}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.07149678, y: 0.91815466, z: 0.19432254, w: 0.33781517}
+  m_LocalRotation: {x: 0.2164396, y: 0, z: 0, w: 0.97629607}
   m_LocalPosition: {x: 0, y: 3, z: -4.9}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: -23.9, y: 139.6, z: 0}
+  m_LocalEulerAnglesHint: {x: 25, y: 0, z: 0}
 --- !u!114 &1289240007
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1802,6 +1847,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CameraMetadata
   cameraId: 1
   targetCamera: {fileID: 1289240005}
+--- !u!114 &1289240009
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1289240003}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 94f23136cf83da34683d3eb5303e58ce, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DepthCapture
+  targetCamera: {fileID: 1289240005}
+  depthMaterial: {fileID: 2100000, guid: 87837efc6ca41b84baa14c6cb53782f2, type: 2}
+  width: 640
+  height: 480
+  cameraStreamer: {fileID: 221036235}
 --- !u!1 &1321368329
 GameObject:
   m_ObjectHideFlags: 0
@@ -1929,6 +1991,7 @@ GameObject:
   - component: {fileID: 1464647775}
   - component: {fileID: 1464647778}
   - component: {fileID: 1464647779}
+  - component: {fileID: 1464647780}
   m_Layer: 0
   m_Name: Camera_West
   m_TagString: Untagged
@@ -2037,6 +2100,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CameraMetadata
   cameraId: 3
   targetCamera: {fileID: 1464647776}
+--- !u!114 &1464647780
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1464647774}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 94f23136cf83da34683d3eb5303e58ce, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DepthCapture
+  targetCamera: {fileID: 1464647776}
+  depthMaterial: {fileID: 2100000, guid: 87837efc6ca41b84baa14c6cb53782f2, type: 2}
+  width: 640
+  height: 480
+  cameraStreamer: {fileID: 221036235}
 --- !u!1 &1620450357
 GameObject:
   m_ObjectHideFlags: 0
