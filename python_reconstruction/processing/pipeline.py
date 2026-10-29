@@ -8,41 +8,39 @@ from processing.helpers import (
     depth_to_point_cloud,
 )
 
+
 def get_camera_transform(camera_metadata):
     """Build a camera-to-world transform from Unity camera metadata."""
-
     def vector3(key):
         vector = camera_metadata[key]
         return [vector["x"], vector["y"], vector["z"]]
 
-    transform = build_camera_to_world(
+    return build_camera_to_world(
         position=vector3("position"),
         right=vector3("right"),
         up=vector3("up"),
         forward=vector3("forward"),
     )
 
-    return transform
 
 def reconstruct_single_camera(rgbd_frame, camera_metadata, stride=2, max_depth=50.0):
     """
     Convert one RGB-D frame into camera-space and world-space point clouds.
 
-    Returns a dictionary containing both coordinate spaces and point colors.
+    The world-space points are currently used only for diagnostic visualization
+    and multi-camera alignment experiments; they are not the final generated world.
     """
     rgb_frame = rgbd_frame["rgb"]
     depth_frame = rgbd_frame["depth"]
-
     height, width = depth_frame.shape
-    fov = camera_metadata["fov"]
-    
+
     if rgb_frame.shape[:2] != (height, width):
         raise ValueError("RGB and depth resolutions must match.")
 
     intrinsic_matrix = calculate_intrinsics(
         width=width,
         height=height,
-        vertical_fov_degrees=fov,
+        vertical_fov_degrees=camera_metadata["fov"],
     )
 
     points_camera, colors = depth_to_point_cloud(
@@ -65,6 +63,8 @@ def reconstruct_single_camera(rgbd_frame, camera_metadata, stride=2, max_depth=5
     }
 
 
+
+# Used only for Testing Purpose
 def visualize_point_cloud(points, colors=None, camera_position=None, coordinate_space="world"):
     """Display a point cloud in Open3D, optionally marking the camera position."""
     if points is None or len(points) == 0:
