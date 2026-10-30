@@ -6,6 +6,7 @@ from processing.helpers import (
     calculate_intrinsics,
     camera_points_to_world,
     depth_to_point_cloud,
+    unity_position_to_open3d,
 )
 
 
@@ -26,6 +27,11 @@ def get_camera_transform(camera_metadata):
 def reconstruct_single_camera(rgbd_frame, camera_metadata, stride=2, max_depth=50.0):
     """
     Convert one RGB-D frame into camera-space and world-space point clouds.
+
+    The world-space points are expressed in the right-handed coordinate system
+    used by Open3D (+X right, +Y up, +Z toward viewer).  The internal Unity
+    left-handed → right-handed conversion (Z-flip) is applied inside
+    camera_points_to_world so callers never need to handle it explicitly.
 
     The world-space points are currently used only for diagnostic visualization
     and multi-camera alignment experiments; they are not the final generated world.
@@ -52,6 +58,8 @@ def reconstruct_single_camera(rgbd_frame, camera_metadata, stride=2, max_depth=5
     )
 
     transform = get_camera_transform(camera_metadata)
+    # camera_points_to_world transforms to Unity world space and then
+    # applies the Unity LH → Open3D RH conversion (Z-flip) internally.
     points_world = camera_points_to_world(points_camera, transform)
 
     return {
@@ -91,8 +99,10 @@ def visualize_point_cloud(points, colors=None, camera_position=None, coordinate_
         )
 
         if camera_position is not None:
+            # Convert Unity world position to Open3D before placing the marker.
+            camera_position_o3d = unity_position_to_open3d(camera_position)
             camera_marker = o3d.geometry.TriangleMesh.create_sphere(radius=0.10)
-            camera_marker.translate(np.asarray(camera_position, dtype=np.float64))
+            camera_marker.translate(camera_position_o3d)
             camera_marker.paint_uniform_color([1.0, 0.0, 0.0])
             geometries.append(camera_marker)
 

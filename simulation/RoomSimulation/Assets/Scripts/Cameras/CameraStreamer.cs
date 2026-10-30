@@ -49,6 +49,11 @@ public class CameraStreamer : MonoBehaviour
             return;
         }
 
+        if (cameraMetadata != null)
+        {
+            cameraId = cameraMetadata.CameraId;
+        }
+
         StartCoroutine(InitializeAndCapture());
     }
 
