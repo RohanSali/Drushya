@@ -133,9 +133,11 @@ def parse_rgbd_packet(message: bytes):
         )
         return None
 
-    depth_frame = depth_data.reshape(
-        (FRAME_HEIGHT, FRAME_WIDTH)
-    )
+    # Unity Texture2D.GetPixels() orders pixels from bottom-to-top (row 0 is bottom), whereas RGB images in OpenCV/standard format have row 0 at the top.
+    # Flip vertically so depth_frame[y, x] aligns with rgb_frame[y, x].
+    depth_frame = np.flipud(
+        depth_data.reshape((FRAME_HEIGHT, FRAME_WIDTH))
+    ).copy()
 
     return {
         "camera_id": camera_id,

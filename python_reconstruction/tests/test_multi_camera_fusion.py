@@ -11,7 +11,7 @@ from processing.helpers import unity_position_to_open3d
 TARGET_CAMERA_IDS = [0, 1, 2, 3]
 STRIDE = 1
 MAX_DEPTH = 50.0
-DEBUG = True
+DEBUG = False
 
 CAMERA_NAMES = {
     0: "North",
