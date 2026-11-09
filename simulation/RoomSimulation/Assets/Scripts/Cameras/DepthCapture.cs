@@ -22,6 +22,7 @@ public class DepthCapture : MonoBehaviour
 
     private RenderTexture depthRenderTexture;
     private Texture2D depthTexture;
+    private int captureCount;
 
     private void Start()
     {
@@ -95,41 +96,86 @@ public class DepthCapture : MonoBehaviour
         // Save the camera's current target and active RenderTexture
         RenderTexture previousActive = RenderTexture.active;
         RenderTexture previousCameraTarget = targetCamera.targetTexture;
+        CameraClearFlags previousClearFlags = targetCamera.clearFlags;
+        Color previousBackgroundColor = targetCamera.backgroundColor;
 
-        // Render this specific camera into the depth RenderTexture
-        targetCamera.targetTexture = depthRenderTexture;
+        float[] depthData;
+        try
+        {
+            targetCamera.targetTexture = depthRenderTexture;
+            targetCamera.clearFlags = CameraClearFlags.SolidColor;
+            targetCamera.backgroundColor = Color.clear;
 
-        targetCamera.RenderWithShader(
-            depthMaterial.shader,
-            "RenderType"
-        );
+            RenderTexture.active = depthRenderTexture;
+            GL.Clear(true, true, Color.clear);
 
-        // Read rendered depth
-        RenderTexture.active =
-            depthRenderTexture;
+            targetCamera.RenderWithShader(
+                depthMaterial.shader,
+                "RenderType"
+            );
 
-        depthTexture.ReadPixels(
-            new Rect(
+            RenderTexture.active = depthRenderTexture;
+            depthTexture.ReadPixels(
+                new Rect(0, 0, width, height),
                 0,
-                0,
-                width,
-                height
-            ),
-            0,
-            0
-        );
+                0
+            );
 
-        depthTexture.Apply();
+            depthTexture.Apply();
+            depthData = GetDepthData();
+        }
+        finally
+        {
+            RenderTexture.active = previousActive;
+            targetCamera.targetTexture = previousCameraTarget;
+            targetCamera.clearFlags = previousClearFlags;
+            targetCamera.backgroundColor = previousBackgroundColor;
+        }
 
-        // Convert to float array
-        float[] depthData =
-            GetDepthData();
+        if (depthData == null)
+        {
+            return null;
+        }
 
-        // Restore the previous rendering state
-        RenderTexture.active = previousActive;
-        targetCamera.targetTexture = previousCameraTarget;
+        captureCount++;
+        if (captureCount == 1 || captureCount % 150 == 0)
+        {
+            LogDepthDiagnostics(depthData);
+        }
 
         return depthData;
+    }
+
+    private void LogDepthDiagnostics(float[] depthData)
+    {
+        int validCount = 0;
+        float minDepth = float.PositiveInfinity;
+        float maxDepth = 0f;
+
+        for (int i = 0; i < depthData.Length; i++)
+        {
+            float depth = depthData[i];
+            if (float.IsNaN(depth) || float.IsInfinity(depth) || depth <= 0f)
+            {
+                continue;
+            }
+
+            validCount++;
+            minDepth = Mathf.Min(minDepth, depth);
+            maxDepth = Mathf.Max(maxDepth, depth);
+        }
+
+        int centerIndex = (height / 2) * width + width / 2;
+        string range = validCount > 0
+            ? $"{minDepth:F3}-{maxDepth:F3} m"
+            : "no valid geometry";
+        Debug.Log(
+            $"[DepthCapture] Camera={targetCamera.name} " +
+            $"Frame={captureCount} Size={width}x{height} " +
+            $"Valid={validCount}/{depthData.Length} " +
+            $"Zero/invalid={depthData.Length - validCount} " +
+            $"Range={range} Center={depthData[centerIndex]:F3} m"
+        );
     }
 
     private void OnDestroy()

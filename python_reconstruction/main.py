@@ -88,7 +88,6 @@ async def main():
     last_signature = None
     fused_points = np.empty((0, 3), dtype=np.float32)
     fused_colors = None
-    summaries = {}
     fps_start = time.perf_counter()
     displayed_frames = 0
     fps = 0.0
@@ -124,7 +123,7 @@ async def main():
                 signature = frame_signature(frames)
                 if signature != last_signature and len(frames) == len(TARGET_CAMERA_IDS):
                     # Keep the WebSocket event loop responsive while CPU-heavy point-cloud generation runs in a worker thread.
-                    fused_points, fused_colors, summaries = await asyncio.to_thread(
+                    fused_points, fused_colors, _ = await asyncio.to_thread(
                         reconstruct_snapshot, frames, metadata
                     )
                     last_signature = signature
@@ -149,7 +148,11 @@ async def main():
                     DASHBOARD_WIDTH // 2,
                     DASHBOARD_HEIGHT // 2,
                     "Fused point cloud",
-                    "Waiting for all camera feeds...",
+                    (
+                        "No valid depth geometry in current frames."
+                        if len(frames) == len(TARGET_CAMERA_IDS)
+                        else "Waiting for all camera feeds..."
+                    ),
                 )
 
             world_panel = draw_placeholder(

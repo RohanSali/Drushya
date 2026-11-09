@@ -241,7 +241,9 @@ public class CameraStreamer : MonoBehaviour
         {
             float depth = depthData[i];
 
-            if (depth <= 0f)
+            if (float.IsNaN(depth) ||
+                float.IsInfinity(depth) ||
+                depth <= 0f)
             {
                 depthUint16[i] = 0;
             }
