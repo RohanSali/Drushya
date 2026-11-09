@@ -9,16 +9,16 @@ from cameras.display import (
     build_dashboard,
     render_point_cloud_preview,
     draw_placeholder,
+    handle_point_cloud_mouse,
 )
-from config.settings import FRAME_WIDTH, FRAME_HEIGHT
-
-
-TARGET_CAMERA_IDS = [0, 1, 2, 3]
-POINT_STRIDE = 3
-MAX_DEPTH = 50.0
-DASHBOARD_WIDTH = 1540
-DASHBOARD_HEIGHT = 800
-PROCESS_EVERY_SECONDS = 0.01
+from config.settings import (
+    DASHBOARD_HEIGHT,
+    DASHBOARD_WIDTH,
+    MAX_DEPTH,
+    POINT_STRIDE,
+    PROCESS_EVERY_SECONDS,
+    TARGET_CAMERA_IDS,
+)
 
 
 def snapshot_latest_frames():
@@ -92,12 +92,31 @@ async def main():
     fps_start = time.perf_counter()
     displayed_frames = 0
     fps = 0.0
+    point_cloud_view = {
+        "panel_x": DASHBOARD_WIDTH // 2,
+        "panel_y": 0,
+        "panel_width": DASHBOARD_WIDTH // 2,
+        "panel_height": DASHBOARD_HEIGHT // 2,
+        "yaw": 42.0,
+        "pitch": 25.0,
+        "zoom": 1.0,
+        "pan_x": 0.0,
+        "pan_y": 0.0,
+        "drag_mode": None,
+        "last_x": 0,
+        "last_y": 0,
+    }
 
     print("Drushya real-time monitor starting.")
-    print("Waiting for Unity cameras 0, 1, 2, and 3...")
+    camera_ids = ", ".join(str(camera_id) for camera_id in TARGET_CAMERA_IDS)
+    print(f"Waiting for Unity cameras {camera_ids}...")
+    print("Point cloud: left-drag to orbit, wheel to zoom, right-drag to pan, double-click to reset.")
     print("Press Q or Esc in the dashboard window to exit.")
 
     try:
+        cv2.namedWindow(window_name)
+        cv2.setMouseCallback(window_name, handle_point_cloud_mouse, point_cloud_view)
+
         while True:
             frames, metadata = snapshot_latest_frames()
 
@@ -123,6 +142,7 @@ async def main():
                     fused_colors,
                     width=DASHBOARD_WIDTH // 2,
                     height=DASHBOARD_HEIGHT // 2,
+                    view_state=point_cloud_view,
                 )
             else:
                 cloud_panel = draw_placeholder(

@@ -191,17 +191,69 @@ def draw_placeholder(width, height, title, message):
 _cloud_cache = {"key": None, "panel": None}
 
 
-def render_point_cloud_preview(points, colors=None, width=640, height=450):
-    """
-    Render a stable isometric 2D preview of a 3D point cloud using OpenCV.
+def handle_point_cloud_mouse(event, x, y, flags, view_state):
+    """Update point-cloud orbit, pan, and zoom state from dashboard mouse input."""
+    inside_panel = (
+        view_state["panel_x"] <= x < view_state["panel_x"] + view_state["panel_width"]
+        and view_state["panel_y"] <= y < view_state["panel_y"] + view_state["panel_height"]
+    )
+    local_x = x - view_state["panel_x"]
+    local_y = y - view_state["panel_y"]
 
-    This keeps the dashboard in one window. It is a preview projection, not
-    an interactive 3D viewport; the underlying points remain 3D coordinates.
+    if event == cv2.EVENT_LBUTTONDOWN and inside_panel:
+        view_state["drag_mode"] = "orbit"
+        view_state["last_x"], view_state["last_y"] = local_x, local_y
+    elif event in (cv2.EVENT_RBUTTONDOWN, cv2.EVENT_MBUTTONDOWN) and inside_panel:
+        view_state["drag_mode"] = "pan"
+        view_state["last_x"], view_state["last_y"] = local_x, local_y
+    elif event == cv2.EVENT_MOUSEMOVE and view_state["drag_mode"]:
+        dx = local_x - view_state["last_x"]
+        dy = local_y - view_state["last_y"]
+        if view_state["drag_mode"] == "orbit":
+            view_state["yaw"] += dx * 0.5
+            view_state["pitch"] = float(np.clip(view_state["pitch"] + dy * 0.5, -89.0, 89.0))
+        else:
+            view_state["pan_x"] += dx
+            view_state["pan_y"] += dy
+        view_state["last_x"], view_state["last_y"] = local_x, local_y
+    elif event in (cv2.EVENT_LBUTTONUP, cv2.EVENT_RBUTTONUP, cv2.EVENT_MBUTTONUP):
+        view_state["drag_mode"] = None
+    elif event == cv2.EVENT_MOUSEWHEEL and inside_panel:
+        wheel_delta = (flags >> 16) & 0xFFFF
+        if wheel_delta & 0x8000:
+            wheel_delta -= 0x10000
+        wheel_steps = wheel_delta / 120.0
+        view_state["zoom"] = float(np.clip(view_state["zoom"] * 1.1 ** wheel_steps, 0.1, 20.0))
+    elif event == cv2.EVENT_LBUTTONDBLCLK and inside_panel:
+        view_state.update(
+            yaw=42.0,
+            pitch=25.0,
+            zoom=1.0,
+            pan_x=0.0,
+            pan_y=0.0,
+            drag_mode=None,
+        )
+
+
+def render_point_cloud_preview(points, colors=None, width=640, height=450, view_state=None):
     """
+    Render a mouse-navigable 2D projection of a 3D point cloud using OpenCV.
+
+    The dashboard stays in one window; mouse gestures change the projection
+    without modifying the underlying point coordinates.
+    """
+    view = view_state or {}
+    yaw_degrees = view.get("yaw", 42.0)
+    pitch_degrees = view.get("pitch", 25.0)
+    zoom = view.get("zoom", 1.0)
+    pan_x = view.get("pan_x", 0.0)
+    pan_y = view.get("pan_y", 0.0)
+
     # Cheap identity-based cache key (main.py only swaps the array on new data).
     try:
         key = (
             id(points), id(colors), len(points), width, height,
+            yaw_degrees, pitch_degrees, zoom, pan_x, pan_y,
             np.asarray(points[0]).tobytes() if len(points) else b"",
             np.asarray(points[-1]).tobytes() if len(points) else b"",
         )
@@ -216,7 +268,7 @@ def render_point_cloud_preview(points, colors=None, width=640, height=450):
     points = np.asarray(points, dtype=np.float32)
     n_valid = len(points) if (points.ndim == 2 and points.shape[1] == 3) else 0
     _panel_header(
-        panel, "Fused Point Cloud", "isometric preview",
+        panel, "Fused Point Cloud", "drag: orbit | wheel: zoom | right-drag: pan | double-click: reset",
         tag=f"{n_valid:,} pts" if n_valid else "no data",
         tag_dot=OK if n_valid else WARN,
     )
@@ -228,8 +280,8 @@ def render_point_cloud_preview(points, colors=None, width=640, height=450):
         return panel
 
     # Fixed isometric-like view: rotate world coordinates for display only.
-    yaw = np.deg2rad(42.0)
-    pitch = np.deg2rad(25.0)
+    yaw = np.deg2rad(yaw_degrees)
+    pitch = np.deg2rad(pitch_degrees)
     cy, sy = np.cos(yaw), np.sin(yaw)
     cp, sp = np.cos(pitch), np.sin(pitch)
     rotation_y = np.array([[cy, 0, sy], [0, 1, 0], [-sy, 0, cy]], dtype=np.float32)
@@ -250,6 +302,10 @@ def render_point_cloud_preview(points, colors=None, width=640, height=450):
     base_y = height - margin_bottom - (avail_h - span[1] * scale) / 2.0
     px = ((xy[:, 0] - mins[0]) * scale + off_x).astype(np.int32)
     py = (base_y - (xy[:, 1] - mins[1]) * scale).astype(np.int32)
+    view_center_x = width / 2.0
+    view_center_y = (margin_top + height - margin_bottom) / 2.0
+    px = (view_center_x + (px - view_center_x) * zoom + pan_x).astype(np.int32)
+    py = (view_center_y + (py - view_center_y) * zoom + pan_y).astype(np.int32)
 
     if colors is not None and len(colors) == len(points):
         rgb = np.clip(np.asarray(colors) * 255.0, 0, 255).astype(np.uint8)
