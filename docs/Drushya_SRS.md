@@ -1,1336 +1,709 @@
 # Software Requirements Specification (SRS)
 
 ## Project Information
-- **Project Title:** 
-Real-Time Simplified 3D Environment Reconstruction from Multi-Camera Feeds
 
-- **Document Type:** 
-Software Requirements Specification
+| Field | Details |
+|---|---|
+| Project Title | Real-Time Simplified 3D Environment Reconstruction from Multi-Camera Feeds |
+| Project Name | Drushya |
+| Document Type | Software Requirements Specification |
+| Version | 2.0 |
+| Status | Real-time multi-camera RGB-D acquisition, point-cloud generation and fusion foundation implemented; AI scene understanding and simplified world generation are the next phase |
+| Last Updated | 13 November 2026 |
 
-- **Version:** 
-1.0
+---
 
-- **Project Status:** 
-Prototype / Final-Year Engineering Project Subsystem
+# 1. INTRODUCTION
 
-## 1. INTRODUCTION
+## 1.1 Purpose
 
-### 1.1 Purpose
+Drushya is a prototype system that observes an environment through multiple camera feeds and generates a simplified, spatially meaningful 3D representation of that environment.
 
-This project aims to develop a prototype system capable of converting observations of a real-world environment into a simplified 3D representation in near real time.
+The initial implementation uses a Unity-based simulated environment with four virtual RGB-D cameras. A Python application receives the camera streams, processes RGB and depth data, generates per-camera point clouds, combines observations from the cameras, and displays the live camera feeds and fused point cloud.
 
-The initial implementation will use a Unity-based simulated environment instead of physical cameras or IoT hardware. Four virtual cameras will observe a common scene from different viewpoints. Camera data will be processed by a Python-based perception and reconstruction pipeline to generate a unified, simplified 3D representation of the observed environment.
+The next major phase moves beyond point-cloud visualization. The system will interpret information extracted from the camera observations and independently generate a simplified 3D world model. The generated model should preserve important spatial properties—such as object identity, position, dimensions, orientation and approximate color—without reproducing every surface detail.
 
-The project intentionally does not attempt to create a photorealistic or perfectly accurate digital twin. The objective is to create a spatially meaningful, lightweight and visually understandable approximation of the environment that can be freely viewed using a 3D camera.
+The objective is not photorealistic reconstruction or a pixel-perfect digital twin. It is a lightweight, understandable 3D representation that captures the important structure of the observed environment.
 
-### 1.2 Scope
+## 1.2 Scope
 
-The prototype will cover:
+### Implemented foundation
 
-- Creation of a simple simulated environment in Unity.
-- Placement of four virtual cameras with overlapping fields of view.
-- Generation/capture of RGB and depth information.
-- Transmission of camera data from Unity to Python.
-- Camera calibration and coordinate-system handling.
-- Conversion of RGB-D observations into 3D point clouds.
-- Transformation of individual camera point clouds into a common coordinate system.
-- Multi-camera point-cloud fusion.
-- Point-cloud filtering and downsampling.
-- Optional voxel/primitive-based simplification.
-- Optional object detection and basic 3D localization.
-- Real-time or near-real-time updates.
-- Interactive 3D visualization with rotation, zoom and pan.
-- Evaluation of reconstruction quality, processing speed and system stability.
+- Create and configure a Unity simulation environment.
+- Place four virtual RGB-D cameras around the environment.
+- Capture RGB frames, depth frames and camera metadata.
+- Stream camera data from Unity to Python using WebSocket communication.
+- Receive and decode continuous camera data.
+- Calculate camera intrinsics from configured camera parameters.
+- Interpret camera extrinsics and Unity world-coordinate conventions.
+- Convert RGB-D frames into individual camera point clouds.
+- Use spatial calibration to relate observations from different cameras.
+- Combine point-cloud observations from the four cameras.
+- Display four camera feeds and the fused point cloud in a live 2×2 monitoring window.
+- Continuously update the display as new frames arrive.
 
-The following are outside the initial scope:
+### Planned AI-assisted scene understanding and world generation
+
+- Detect relevant objects and structural regions in camera images.
+- Extract geometric and semantic information from RGB-D observations.
+- Identify major environmental structures such as floors and walls.
+- Estimate object positions, dimensions and orientations.
+- Estimate a representative, preferably uniform, color for each reconstructed object.
+- Associate observations of the same object across different cameras.
+- Combine multi-camera evidence into a consistent scene description.
+- Generate a new, simplified 3D environment from the extracted information.
+- Update the generated environment as new observations are processed.
+- Develop a 3D-world heatmap or spatial-confidence visualization.
+- Evaluate the generated model against the Unity source scene.
+
+### Out of scope for the current prototype
 
 - Photorealistic reconstruction.
+- Pixel-perfect texture reproduction.
 - Exact digital-twin generation.
-- Physical IoT camera deployment.
-- Advanced semantic understanding of every object.
+- Physical camera deployment in the current implementation.
 - Autonomous control of physical machines.
-- User actions such as object selection, manipulation or command execution.
-- Full-scale production deployment.
+- Full semantic understanding of every possible object.
+- Object manipulation or command execution through the viewer.
+- Production-scale deployment.
 
-### 1.3 Intended Users
+## 1.3 Intended Users
 
-Primary users:
-
-- Project developer/researcher.
-- Engineering students working on computer vision and 3D reconstruction.
+- Project developer and researcher.
+- Engineering students working in computer vision, AI and 3D reconstruction.
 - Researchers experimenting with multi-camera perception.
-- Future users of a larger machine/environment monitoring system.
+- Future users of environment-monitoring and spatial-understanding systems.
+
+## 1.4 Definitions and Acronyms
+
+| Term | Meaning |
+|---|---|
+| RGB | Red, Green and Blue image data |
+| RGB-D | RGB image accompanied by depth information |
+| Point cloud | A collection of 3D points representing observed surfaces |
+| Camera intrinsics | Internal camera parameters, including focal lengths and principal point |
+| Camera extrinsics | Camera position and orientation relative to a reference coordinate system |
+| FOV | Field of View |
+| WebSocket | Communication protocol used for continuous data exchange |
+| Scene understanding | Extraction of structural, geometric and semantic information from observations |
+| Scene representation | Structured description of the objects and geometry in the environment |
+| World generation | Creation of a new simplified 3D scene using the extracted scene representation |
+| Near real-time | Continuous processing and updates with a delay suitable for monitoring and understanding scene changes |
+| FPS | Frames Per Second |
+| YOLO | You Only Look Once, a family of object-detection models |
+| ICP | Iterative Closest Point, an algorithm used for point-cloud registration |
+
+---
+
+# 2. OVERALL DESCRIPTION
+
+## 2.1 Product Perspective
+
+Drushya consists of four logical layers:
+
+1. **Simulation and Camera Layer** – Unity generates the environment and provides RGB-D observations from four virtual cameras.
+2. **Data Acquisition and Perception Layer** – Python receives the streams and extracts visual and geometric information.
+3. **Scene Understanding and World Generation Layer** – AI and geometric processing combine extracted information into a structured scene description and generate a simplified 3D world.
+4. **Monitoring and Visualization Layer** – A live dashboard presents camera feeds, point-cloud observations, the generated world and, later, a spatial heatmap.
+
+### High-Level Architecture
+
+```text
++------------------------------------------------------+
+|                 UNITY SIMULATION                     |
+|       Environment + Objects + Four RGB-D Cameras     |
++----------------------------+-------------------------+
+                             | RGB + Depth + Metadata
+                             v
++------------------------------------------------------+
+|           PYTHON DATA ACQUISITION LAYER               |
+|       WebSocket Receiver | Frame Handling            |
++----------------------------+-------------------------+
+                             v
++------------------------------------------------------+
+|             PERCEPTION / GEOMETRY LAYER               |
+| RGB-D Processing | Calibration | Point Clouds        |
+|             Multi-Camera Observation Fusion           |
++----------------------------+-------------------------+
+                             v
++------------------------------------------------------+
+|          AI SCENE UNDERSTANDING LAYER                 |
+| Object Detection | Structural Detection               |
+| Depth Association | Geometry Estimation               |
+| Multi-View Association | Scene Information            |
++----------------------------+-------------------------+
+                             v
++------------------------------------------------------+
+|             WORLD GENERATION LAYER                    |
+| Structured Scene Description | Simplified Geometry   |
+|             Generated 3D Environment                  |
++----------------------------+-------------------------+
+                             v
++------------------------------------------------------+
+|             MONITORING / VISUALIZATION                |
+| Camera Feeds | Fused Point Cloud                      |
+| Generated 3D World | 3D Spatial Heatmap              |
++------------------------------------------------------+
+```
+
+The point cloud is an intermediate observation and geometric-evidence source. It is not intended to be the final reconstructed world.
+
+## 2.2 Simulation Environment
+
+Unity acts as the initial source environment. It contains a configurable room or scene with elements such as floors, walls, tables, platforms, cubes, boxes, cylinders and optional moving objects. Four virtual cameras observe the scene from different directions.
+
+The Unity scene provides known geometry and camera parameters, making it suitable for validating the perception and reconstruction pipeline before moving to physical cameras.
+
+## 2.3 Camera Configuration and Naming Convention
+
+The four cameras use fixed IDs and directional names:
+
+| Camera ID | Camera Name | Direction Faced | Unity Forward Direction |
+|---:|---|---|---|
+| 0 | North | North | +Z |
+| 1 | East | East | +X |
+| 2 | South | South | −Z |
+| 3 | West | West | −X |
+
+A camera name describes the direction in which the camera is looking, not the side of the room on which it is mounted.
+
+Each camera provides its ID, position, rotation, forward/right/up direction vectors, image dimensions, field of view, RGB frame and depth frame. Python must identify cameras by camera ID rather than assuming metadata or frames always arrive in numerical order.
+
+## 2.4 Reconstruction Philosophy
+
+Drushya follows an **observation → understanding → generation** approach.
+
+It does not simply combine all camera point clouds and treat the resulting points as the final 3D world.
+
+1. Each camera observes a portion of the environment.
+2. RGB and depth data provide visual and geometric evidence.
+3. Point clouds provide 3D measurements of observed surfaces.
+4. Perception algorithms extract useful information from these observations.
+5. Information from different cameras is associated and combined.
+6. A structured description of the environment is produced.
+7. The system generates its own simplified 3D world using that description.
+
+For example, if the cameras collectively observe a room containing four walls and a cube near its centre, the system should infer the walls and cube, estimate their positions, orientations, dimensions and representative colors, and then create a new simplified room and cube from those properties. It does not need to reproduce the original meshes, textures or every point captured by the cameras.
+
+| Point-cloud observation | Generated world |
+|---|---|
+| Dense set of measured 3D points | Small set of meaningful objects and surfaces |
+| Directly derived from camera depth | Constructed from interpreted scene information |
+| May contain noise, redundancy and incomplete surfaces | Intended to be cleaner, simpler and spatially consistent |
+| Intermediate representation for inspection and analysis | Main intended reconstruction output |
+
+A shared coordinate reference may be used to compare observations and estimate where objects and surfaces belong. This does not make the fused point cloud the final world model.
+
+## 2.5 Current Dashboard Concept
+
+The application uses a single monitoring window arranged as a 2×2 grid.
+
+| Panel | Content | Status |
+|---|---|---|
+| 1 | Four live camera feeds | Implemented |
+| 2 | Current fused point cloud | Implemented |
+| 3 | Generated simplified 3D world | Future development |
+| 4 | 3D-world heatmap / spatial-confidence view | Future development |
 
-### 1.4 Definitions and Acronyms
+At the current stage, the first two panels are active. The remaining panels are reserved for the AI and world-generation phase. The point-cloud view is a monitoring view; the underlying data and display should continue updating as new observations are processed.
 
-RGB:
-Red-Green-Blue image data.
+---
 
-RGB-D:
-RGB image combined with depth information.
+# 3. SYSTEM OBJECTIVES
 
-3D:
-Three-dimensional spatial representation.
+1. Maintain a working four-camera RGB-D simulation.
+2. Receive continuous camera data in Python.
+3. Generate point clouds from RGB-D observations.
+4. Combine observations from multiple cameras using consistent calibration and spatial references.
+5. Provide a live monitoring interface for camera feeds and fused point clouds.
+6. Develop AI-assisted object and structural perception.
+7. Extract approximate 3D properties from camera observations.
+8. Associate observations of the same structure or object across cameras.
+9. Generate a simplified 3D environment independently of the source scene's detailed geometry.
+10. Update the generated world as the observed environment changes.
+11. Provide visual tools to inspect reconstruction quality and spatial confidence.
+12. Keep the architecture modular so Unity cameras can eventually be replaced by physical camera sources.
 
-Point Cloud:
-Collection of points representing the geometry/surface of an environment.
+---
 
-Voxel:
-A volumetric element representing a small region of 3D space.
+# 4. FUNCTIONAL REQUIREMENTS
 
-Camera Intrinsics:
-Internal camera parameters such as focal length and principal point.
+## 4.1 Completed Foundation Requirements
 
-Camera Extrinsics:
-Camera position and orientation relative to a reference coordinate system.
+- **FR-01: Unity Environment.** The system shall use a Unity scene as the initial simulated environment.
+- **FR-02: Four-Camera Configuration.** The system shall support four cameras with the fixed North, East, South and West ID convention.
+- **FR-03: RGB Capture.** Each camera shall provide an RGB frame.
+- **FR-04: Depth Capture.** Each camera shall provide a depth frame suitable for metric 3D point generation.
+- **FR-05: Camera Metadata.** The system shall transmit camera ID, position, orientation/direction vectors, resolution and field of view.
+- **FR-06: Continuous Data Transfer.** Unity shall stream camera data to Python using WebSocket communication.
+- **FR-07: Frame Reception and Decoding.** Python shall receive and decode RGB-D frames and associate them with the correct camera.
+- **FR-08: Camera Calibration.** The system shall calculate or obtain camera intrinsics and use supplied extrinsics.
+- **FR-09: Point-cloud Generation.** The system shall generate a colored point cloud from each camera's RGB-D observation.
+- **FR-10: Multi-Camera Fusion.** The system shall combine observations from the configured cameras using calibration and spatial information.
+- **FR-11: Live Monitoring.** The system shall continuously update the camera-feed and fused-point-cloud panels as new frames are received.
 
-FOV:
-Field of View.
+## 4.2 Scene Understanding Requirements — Next Development Phase
 
-ICP:
-Iterative Closest Point, an algorithm commonly used for point-cloud registration.
+- **FR-12: Object Detection.** Detect relevant objects in RGB camera frames using a suitable computer-vision or AI model.
+- **FR-13: Structural Region Detection.** Identify major environmental structures such as floors, walls and large planar surfaces.
+- **FR-14: Depth Association.** Associate detected image regions with corresponding depth measurements or 3D observations.
+- **FR-15: Geometric Property Estimation.** Estimate approximate 3D position, dimensions and orientation of detected objects and structures.
+- **FR-16: Representative Color Estimation.** Estimate a representative color for each reconstructed object or structural element. The initial model may use one uniform color per object rather than detailed textures.
+- **FR-17: Multi-Camera Observation Association.** Identify and combine observations that refer to the same object or structure across camera views.
+- **FR-18: Scene Information Generation.** Produce a structured representation containing object classes, spatial properties and appearance information.
+- **FR-19: Spatial Consistency.** Use calibration and multi-view evidence to reduce duplicate objects and improve consistency of estimated positions and dimensions.
 
-FPS:
-Frames Per Second.
+## 4.3 World Generation Requirements — Planned
 
-YOLO:
-You Only Look Once, an object-detection model family.
+- **FR-20: Simplified Geometry Generation.** Generate a new 3D scene using the structured scene representation.
+- **FR-21: Primitive-Based Representation.** Where appropriate, represent structures and objects using simple primitives such as planes, cuboids and cylinders.
+- **FR-22: Independent Scene Construction.** Construct the generated scene from extracted scene information rather than copying the original Unity geometry or displaying the fused point cloud as the final result.
+- **FR-23: Approximate Appearance.** Use representative colors and simple materials. Detailed texture reproduction is not required.
+- **FR-24: Continuous World Updates.** Update the generated scene when sufficiently meaningful changes are detected in incoming observations.
+- **FR-25: Spatial Heatmap.** Provide a 3D heatmap or equivalent visualization for selected spatial information, such as observation coverage, confidence or reconstruction uncertainty. Its exact meaning and encoding will be finalized during implementation.
 
-Scene Reconstruction:
-Process of generating a 3D representation from sensor/camera observations.
+## 4.4 Dashboard and Monitoring Requirements
 
-Near Real-Time:
-A system response/update rate sufficiently fast for continuous monitoring, even if reconstruction is not performed at the full rendering frame rate.
+- **FR-26: Four-Panel Dashboard.** Provide a single 2×2 monitoring window.
+- **FR-27: Camera Feed Panel.** The first panel shall display the four camera feeds.
+- **FR-28: Fused Point-cloud Panel.** The second panel shall display the current fused point cloud.
+- **FR-29: Generated World Panel.** The third panel shall display the generated simplified 3D world when implemented.
+- **FR-30: Heatmap Panel.** The fourth panel shall display the 3D-world heatmap when implemented.
+- **FR-31: Processing Statistics.** Expose useful information such as frame IDs, camera availability, processing time, point count, update rate and errors.
+- **FR-32: Graceful Frame Handling.** A missing or delayed camera frame shall not unnecessarily stop processing of other available cameras.
 
+---
 
-## 2. OVERALL DESCRIPTION
+# 5. NON-FUNCTIONAL REQUIREMENTS
 
-### 2.1 Product Perspective
+- **NFR-01: Performance.** Process incoming camera observations continuously and update monitoring outputs with sufficiently low latency for live inspection. Actual throughput and latency shall be measured on the development hardware.
+- **NFR-02: Independent Visualization.** Visualization should not unnecessarily block camera reception or reconstruction processing.
+- **NFR-03: Spatial Accuracy.** The generated world should preserve important spatial relationships, approximate positions, dimensions and orientations. Fine surface detail is secondary.
+- **NFR-04: Simplicity.** The generated world should use a lightweight representation and avoid unnecessary geometric complexity.
+- **NFR-05: Modularity.** Camera input, RGB-D processing, point-cloud generation, perception, scene association, world generation and visualization should remain separate components.
+- **NFR-06: Scalability.** Support four cameras initially while permitting additional camera sources in the future.
+- **NFR-07: Reliability.** Temporary frame loss, invalid depth values or an unavailable camera should not crash the entire application.
+- **NFR-08: Extensibility.** The Unity camera source should eventually be replaceable by physical RGB/RGB-D cameras with limited downstream changes.
+- **NFR-09: Resource Efficiency.** Avoid unnecessary repeated processing and control point-cloud density and AI inference frequency where needed.
+- **NFR-10: Maintainability.** Python modules should be organized by responsibility and expose clear interfaces between pipeline stages.
+- **NFR-11: Evaluation.** Reconstruction quality and runtime performance shall be evaluated using measurable tests rather than assumed accuracy or speed.
+- **NFR-12: Safety.** The current prototype is software-only and shall not directly control physical machinery.
 
-The system will consist of three major layers:
+---
 
-A. Simulation Layer
-B. Perception and Reconstruction Layer
-C. Visualization Layer
+# 6. SYSTEM ARCHITECTURE
 
-High-Level Architecture:
+## 6.1 Unity Simulation and Camera Streaming
 
-+--------------------------------------+
-|          UNITY SIMULATION            |
-|                                      |
-|  Environment + Objects + 4 Cameras   |
-+------------------+-------------------+
-|
-RGB / Depth Data
-|
-v
-+--------------------------------------+
-|       PYTHON PERCEPTION LAYER        |
-|                                      |
-| Calibration                          |
-| Depth Processing                     |
-| Point Cloud Generation               |
-| Coordinate Transformation            |
-| Multi-Camera Registration             |
-| Point Cloud Fusion                   |
-| Simplification                       |
-| Optional Object Detection            |
-+------------------+-------------------+
-|
-Simplified 3D Scene
-|
-v
-+--------------------------------------+
-|           3D VIEWER                  |
-|                                      |
-| Rotate / Zoom / Pan / View           |
-+--------------------------------------+
+**Responsibilities:** generate the environment and objects; position and configure four virtual cameras; capture RGB and depth; provide camera metadata; and stream data continuously to Python.
 
-### 2.2 Simulation Environment
+## 6.2 WebSocket Data Interface
 
-Unity will represent the initial "real world".
+**Responsibilities:** accept the Unity client connection; receive metadata and RGB-D payloads; decode and associate messages with camera IDs; maintain the latest available frame for each camera; and handle incomplete or delayed updates.
 
-The scene will contain simple objects such as:
-
-- Floor
-- Walls
-- Tables
-- Boxes
-- Cylinders
-- Other simple objects
-- Optional moving objects
-
-Four virtual cameras will be positioned around the environment.
-
-The cameras should have overlapping fields of view rather than pointing to exactly the same location.
-
-### 2.3 Camera Configuration
-
-Each camera will have:
-
-- Position
-- Rotation
-- Resolution
-- Field of View
-- Intrinsic parameters
-- Extrinsic parameters
-- RGB output
-- Depth output where supported
-
-The initial camera parameters can be obtained directly from Unity because the simulation provides exact camera information.
-
-### 2.4 Reconstruction Philosophy
-
-The system will prioritize:
-
-- Approximate geometry
-- Low computational complexity
-- Real-time/near-real-time operation
-- Spatial consistency
-- Visual clarity
-
-The system will NOT prioritize:
-
-- Photorealism
-- Fine surface details
-- Texture-perfect reconstruction
-- Pixel-level similarity to the source environment
-
-
-## 3. SYSTEM OBJECTIVES
-
-The main objectives are:
-
-1. Develop a simulated multi-camera perception environment.
-2. Capture synchronized or near-synchronized camera observations.
-3. Process RGB-D information using Python.
-4. Convert camera observations into 3D points.
-5. Transform multiple point clouds into a common coordinate system.
-6. Fuse observations from all four cameras.
-7. Produce a simplified 3D representation.
-8. Optionally detect and localize objects in 3D.
-9. Display the reconstructed environment interactively.
-10. Maintain near-real-time processing.
-11. Create an architecture that can later accept physical camera feeds.
-12. Establish a foundation for a larger real-world monitoring/digital-environment project.
-
-
-## 4. FUNCTIONAL REQUIREMENTS
-
-- **FR requirement:** Unity Environment Creation
-
-The system shall provide a Unity scene containing a simple environment with static and optional dynamic objects.
-
-- **FR requirement:** Multi-Camera Setup
-
-The system shall support four virtual cameras positioned around the environment with overlapping viewpoints.
-
-- **FR requirement:** Camera Data Generation
-
-Each virtual camera shall generate RGB frames and depth information for reconstruction.
-
-- **FR requirement:** Camera Metadata
-
-The system shall provide camera intrinsic and extrinsic information to the Python pipeline.
-
-- **FR requirement:** Camera Data Transfer
-
-The system shall support transferring camera data from Unity to Python.
-
-Initial implementation may use saved frames/files for development. The target implementation shall support real-time streaming through an appropriate communication mechanism such as TCP or WebSocket.
-
-- **FR requirement:** RGB-D Processing
-
-The Python pipeline shall process RGB and depth data.
-
-- **FR requirement:** 3D Point Generation
-
-The system shall convert image pixels and depth information into 3D coordinates.
-
-- **FR requirement:** Point Cloud Generation
-
-The system shall generate a point cloud for each camera.
-
-- **FR requirement:** Coordinate Transformation
-
-The system shall transform individual camera point clouds into a common world coordinate system.
-
-- **FR requirement:** Multi-Camera Fusion
-
-The system shall merge point clouds generated from the four cameras.
-
-- **FR requirement:** Point Cloud Filtering
-
-The system shall support removal of invalid, noisy or unnecessary points.
-
-- **FR requirement:** Point Cloud Downsampling
-
-The system shall reduce point density while attempting to preserve important geometry.
-
-- **FR requirement:** Voxel Representation
-
-The system should optionally support voxelization for lightweight spatial representation.
-
-- **FR requirement:** Primitive Simplification
-
-The system should support conversion of suitable geometric regions into simple primitives such as:
-
-- Planes
-- Cuboids
-- Cylinders
-- Basic geometric structures
-
-- **FR requirement:** Object Detection
-
-The system may use an object detection model such as YOLO to identify relevant objects.
-
-- **FR requirement:** 3D Object Localization
-
-For detected objects, the system should estimate:
-
-- 3D position
-- Approximate dimensions
-- Approximate orientation where possible
-
-- **FR requirement:** Scene Representation
-
-The system shall maintain a representation of the reconstructed environment that can be rendered by the visualization layer.
-
-- **FR requirement:** Real-Time Updates
-
-The system shall continuously process incoming camera observations and update the reconstructed environment.
-
-- **FR requirement:** Interactive Viewer
-
-The viewer shall support:
-
-- Rotation
-- Zoom
-- Pan
-- Free camera movement
-- Basic viewpoint changes
-
-- **FR requirement:** View-Only Interaction
-
-The viewer shall be primarily for visualization. Object selection, manipulation and physical control actions are outside the initial scope.
-
-- **FR requirement:** Reconstruction Output
-
-The system shall be capable of producing at least one of:
-
-- Point cloud
-- Voxel representation
-- Simplified 3D scene
-- Primitive-based 3D scene
-
-- **FR requirement:** Logging
-
-The system should record basic processing information such as:
-
-- Frame rate
-- Reconstruction update rate
-- Processing time
-- Number of points
-- Number of detected objects
-- System errors
-
-
-## 5. NON-FUNCTIONAL REQUIREMENTS
-
-- **NFR requirement:** Performance
-
-The system should target near-real-time reconstruction updates.
-
-The rendering/viewer should ideally operate independently of the reconstruction update rate.
-
-Target prototype architecture:
-
-Camera capture:
-Approximately 15-30 FPS
-
-Reconstruction:
-Approximately 5-10 updates/sec where hardware permits
-
-Viewer:
-Target approximately 30-60 FPS
-
-These values are engineering targets, not strict minimum requirements.
-
-- **NFR requirement:** Scalability
-
-The architecture should allow four cameras initially and support additional cameras in future versions.
-
-- **NFR requirement:** Modularity
-
-The following components should remain independently replaceable:
-
-- Simulation
-- Camera input
-- Depth processing
-- Object detection
-- Reconstruction
-- Scene simplification
-- Visualization
-
-- **NFR requirement:** Extensibility
-
-The Unity cameras should eventually be replaceable by physical RGB/RGB-D cameras without redesigning the complete reconstruction pipeline.
-
-- **NFR requirement:** Reliability
-
-Temporary camera-frame failures should not crash the entire system.
-
-- **NFR requirement:** Maintainability
-
-Python modules should be separated according to their responsibility.
-
-- **NFR requirement:** Usability
-
-The viewer should provide intuitive camera controls without requiring complex user interaction.
-
-- **NFR requirement:** Resource Efficiency
-
-The reconstruction pipeline should avoid unnecessary processing of high-density data.
-
-- **NFR requirement:** Accuracy
-
-The reconstructed scene should preserve major spatial relationships and object locations even if fine geometry is lost.
-
-- **NFR requirement:** Safety
-
-The prototype is software-only and will not directly control physical machinery.
-
-
-## 6. SYSTEM ARCHITECTURE
-
-### 6.1 Major Components
-
-### Component 1: Unity Simulation
-
-Responsibilities:
-
-- Generate environment.
-- Generate objects.
-- Position cameras.
-- Generate RGB images.
-- Generate depth maps.
-- Provide camera metadata.
-- Simulate optional object movement.
-
-### Component 2: Camera Data Interface
-
-Responsibilities:
-
-- Package camera frames.
-- Synchronize camera data.
-- Transfer data to Python.
-- Handle frame timestamps.
-
-### Component 3: Camera Calibration Module
-
-Responsibilities:
-
-- Store intrinsic parameters.
-- Store extrinsic parameters.
-- Convert camera coordinates to world coordinates.
-- Handle coordinate-system conventions.
-
-### Component 4: RGB-D Processing Module
-
-Responsibilities:
-
-- Validate RGB frames.
-- Validate depth frames.
-- Remove invalid depth.
-- Convert depth values into metric distances where applicable.
-
-### Component 5: Point Cloud Generator
-
-Responsibilities:
-
-- Convert RGB-D pixels into 3D points.
-- Attach RGB/color information.
-- Generate per-camera point clouds.
-
-### Component 6: Registration and Fusion Module
-
-Responsibilities:
-
-- Transform point clouds into a common coordinate frame.
-- Align point clouds if required.
-- Fuse observations.
-- Remove redundant points.
-
-### Component 7: Simplification Module
-
-Responsibilities:
-
-- Downsample point clouds.
-- Voxelize data.
-- Detect planes.
-- Fit basic primitives.
-- Produce lightweight scene representation.
-
-### Component 8: Object Perception Module
-
-Optional in the first version.
-
-Responsibilities:
-
-- Detect objects.
-- Estimate object location.
-- Combine detection with depth.
-- Produce semantic object information.
-
-### Component 9: Visualization Module
-
-Responsibilities:
-
-- Render reconstructed environment.
-- Support rotate, zoom and pan.
-- Display point clouds or simplified geometry.
-- Update the scene continuously.
-
-### Component 10: Monitoring/Logging Module
-
-Responsibilities:
-
-- Record processing statistics.
-- Record errors.
-- Measure latency.
-- Measure reconstruction update rate.
-
-
-## 7. TECHNOLOGY STACK
-
-Simulation:
-- Unity
-- C# for Unity-side scripts
-
-Main Processing:
-- Python 3.x
-
-Computer Vision:
-- OpenCV
-
-3D Processing:
-- Open3D
-
-Numerical Processing:
-- NumPy
-
-Optional Machine Learning:
-- YOLO / Ultralytics
-
-Communication:
-- TCP or WebSocket
-- File-based exchange for early development/testing
-
-Visualization:
-- Open3D for initial prototype
-- Unity as an optional/future visualization layer
-
-Data Formats:
-- PNG/JPEG for image data where appropriate
-- Depth-map compatible format
-- JSON for metadata and scene representation
-- PLY/PCD for point clouds during development
-
-
-## 8. DATA FLOW
-
-### 8.1 Initial Data Flow
-
-Unity Scene
-|
-+--> Camera 1 --> RGB + Depth
-|
-+--> Camera 2 --> RGB + Depth
-|
-+--> Camera 3 --> RGB + Depth
-|
-+--> Camera 4 --> RGB + Depth
-|
-v
-Python Pipeline
-|
-v
-RGB-D Processing
-|
-v
-Point Cloud x 4
-|
-v
-Coordinate Transform
-|
-v
-Point Cloud Fusion
-|
-v
-Filtering/Downsampling
-|
-v
-Scene Simplification
-|
-v
-Optional Object Detection
-|
-v
-3D Scene Representation
-|
-v
-3D Viewer
-
-### 8.2 Point Generation
-
-For a camera pixel:
-
-Pixel = (u, v)
-Depth = Z
-
-Using camera intrinsics, the system calculates:
-
+## 6.3 Camera Calibration and Spatial Reference
+
+**Responsibilities:** calculate camera intrinsics from image dimensions and FOV or use supplied calibration values; interpret camera positions and orientation vectors; maintain Unity coordinate conventions; provide spatial transforms needed for multi-camera comparison and fusion; and validate camera direction and placement.
+
+This module supports geometric reasoning across cameras. It does not imply that the fused point cloud is the final reconstructed world.
+
+## 6.4 RGB-D Processing and Point-cloud Generation
+
+**Responsibilities:** validate RGB and depth frames; interpret depth values in metric units; reject invalid or out-of-range depth; project valid pixels into camera-space 3D points; associate RGB colors with points; and generate a point cloud for each camera.
+
+## 6.5 Multi-Camera Observation Fusion
+
+**Responsibilities:** use calibration and spatial information to relate observations from different viewpoints; combine available point-cloud observations; retain color and geometric information; and support downstream multi-view scene understanding.
+
+The fused cloud is an intermediate representation for visualization and geometric analysis, not the final world-generation output.
+
+## 6.6 AI and Scene Understanding
+
+**Responsibilities:** detect objects and structural regions; associate detections with depth and point-cloud evidence; estimate object and structure properties; associate the same object across multiple cameras; resolve duplicate and conflicting observations; and produce structured scene information.
+
+## 6.7 World Generation
+
+**Responsibilities:** consume structured scene information; create simplified geometry; assign position, scale, orientation and representative color; maintain relationships between generated objects; and update the generated world when the observed scene changes.
+
+## 6.8 Visualization and Dashboard
+
+**Responsibilities:** display all four camera feeds, the current fused point cloud, the generated 3D world when available, the 3D heatmap when available, and useful runtime information.
+
+## 6.9 Logging and Evaluation
+
+**Responsibilities:** record frame reception and processing information; record camera availability and errors; measure latency and update rate; record point counts and detected-object counts; and support comparison between the Unity source scene and generated scene.
+
+---
+
+# 7. TECHNOLOGY STACK
+
+| Area | Technology |
+|---|---|
+| Simulation | Unity |
+| Unity-side development | C# |
+| Main processing | Python 3.x |
+| Computer vision | OpenCV |
+| Numerical processing | NumPy |
+| 3D point-cloud processing | Open3D |
+| Communication | WebSocket |
+| Initial object detection | To be selected during AI implementation; YOLO/Ultralytics is a candidate |
+| Scene representation | Structured Python data / JSON-compatible representation |
+| Initial visualization | Open3D and a Python dashboard/window |
+| Future visualization | Dedicated 3D rendering layer, subject to implementation needs |
+| Development formats | JPEG/RGB image payloads, depth payloads, JSON metadata, PLY/PCD for point-cloud inspection |
+
+The final AI model and rendering technology for the generated world are implementation decisions and are not fixed requirements at this stage.
+
+---
+
+# 8. DATA FLOW
+
+## 8.1 Current Implemented Data Flow
+
+```text
+Unity Environment
+   +--> North Camera (ID 0) -- RGB + Depth + Metadata
+   +--> East Camera  (ID 1) -- RGB + Depth + Metadata
+   +--> South Camera (ID 2) -- RGB + Depth + Metadata
+   +--> West Camera  (ID 3) -- RGB + Depth + Metadata
+                              |
+                       WebSocket Streaming
+                              |
+                       Python Frame Receiver
+                              |
+                         RGB-D Validation
+                              |
+                      Per-Camera Point Clouds
+                              |
+                 Multi-Camera Observation Fusion
+                              |
+                      Live 2×2 Dashboard
+                       /              \
+                Camera Feeds      Fused Point Cloud
+```
+
+## 8.2 Planned AI and World-Generation Data Flow
+
+```text
+RGB Frames + Depth Frames + Camera Metadata
+                    |
+            Perception Processing
+                    |
+          +---------+----------+
+          |                    |
+    Object Detection     Structural Detection
+          |                    |
+          +---------+----------+
+                    |
+           Depth / 3D Association
+                    |
+         Geometric Property Estimation
+                    |
+       Multi-Camera Observation Association
+                    |
+         Structured Scene Description
+                    |
+          Simplified World Generation
+                    |
+          +---------+----------+
+          |                    |
+    Generated 3D World    Spatial Heatmap
+```
+
+## 8.3 RGB-D Point Generation
+
+For an image pixel `(u, v)` with depth `Z`, camera-space coordinates are calculated using camera intrinsics:
+
+```text
 X = (u - cx) * Z / fx
-Y = (v - cy) * Z / fy
+Y = (cy - v) * Z / fy
 Z = Z
+```
 
-Where:
+Where `fx` and `fy` are focal lengths, `cx` and `cy` are the principal point coordinates, and `Z` is the measured depth in the configured metric unit.
 
-fx = focal length in x direction
-fy = focal length in y direction
-cx = principal point x coordinate
-cy = principal point y coordinate
+The resulting point is `P_camera = (X, Y, Z)`. It is retained as a camera observation. Calibration and spatial transforms may be used to compare or fuse observations from multiple cameras in a shared reference frame.
 
-The resulting point is:
+## 8.4 Structured Scene Description
 
-P_camera = (X, Y, Z)
+The AI and geometry pipeline is expected to produce a structured representation similar to the following. This is illustrative; exact fields may change during implementation.
 
-The point is then transformed using the camera's extrinsic parameters into the world coordinate system.
-
-
-## 9. 3D REPRESENTATION LEVELS
-
-The system will evolve through multiple representation levels.
-
-- **Level 1:**
-Individual camera point clouds.
-
-- **Level 2:**
-Unified multi-camera point cloud.
-
-- **Level 3:**
-Filtered/downsampled point cloud.
-
-- **Level 4:**
-Voxel-based environment.
-
-- **Level 5:**
-Simplified geometric primitives.
-
-- **Level 6:**
-Semantic scene containing detected objects and their approximate 3D properties.
-
-The final prototype does not need to reach all levels if the earlier stages provide sufficient validation.
-
-
-## 10. PROJECT DEVELOPMENT STAGES
-
-### STAGE 0: PROJECT FOUNDATION
-
-**Goal:**
-Set up the development environment.
-
-**Tasks:**
-
-- Install Unity.
-- Install Python.
-- Create Python virtual environment.
-- Install NumPy.
-- Install OpenCV.
-- Install Open3D.
-- Install required Unity packages.
-- Create Git repository.
-- Establish project directory structure.
-
-**Deliverable:**
-Working development environment.
-
-
-### STAGE 1: UNITY SIMULATION ENVIRONMENT
-
-**Goal:**
-Create a simple simulated world.
-
-**Tasks:**
-
-- Create floor.
-- Create walls.
-- Add simple objects.
-- Add static objects.
-- Add optional moving objects.
-- Define Unity world coordinate system.
-- Place four cameras.
-- Ensure camera viewpoints overlap.
-- Configure camera resolution and FOV.
-
-**Deliverable:**
-Unity scene with four functioning virtual cameras.
-
-
-### STAGE 2: CAMERA OUTPUT
-
-**Goal:**
-Obtain camera observations.
-
-**Tasks:**
-
-- Capture RGB frames.
-- Generate depth frames.
-- Capture camera position.
-- Capture camera rotation.
-- Capture FOV/intrinsic information.
-- Verify depth values.
-- Verify frame timestamps.
-
-**Deliverable:**
-Four-camera RGB-D dataset/stream.
-
-
-### STAGE 3: PYTHON CAMERA INPUT
-
-**Goal:**
-Receive camera data in Python.
-
-**Tasks:**
-
-- Implement input interface.
-- Initially support saved image/depth files.
-- Later implement real-time communication.
-- Decode RGB and depth frames.
-- Validate frame dimensions.
-- Synchronize camera frames where possible.
-
-**Deliverable:**
-Python application receiving data from four cameras.
-
-
-### STAGE 4: CAMERA CALIBRATION AND COORDINATES
-
-**Goal:**
-Establish consistent camera geometry.
-
-**Tasks:**
-
-- Store intrinsic parameters.
-- Store extrinsic parameters.
-- Define world coordinate system.
-- Verify camera-to-world transformations.
-- Test projection/reprojection.
-- Visualize camera positions.
-
-**Deliverable:**
-Verified multi-camera coordinate system.
-
-
-### STAGE 5: RGB-D TO POINT CLOUD
-
-**Goal:**
-Generate 3D information.
-
-**Tasks:**
-
-- Convert depth pixels to metric depth.
-- Calculate 3D coordinates.
-- Attach RGB colors.
-- Remove invalid depth.
-- Generate point cloud for each camera.
-- Visualize individual point clouds.
-
-**Deliverable:**
-Four independent 3D point clouds.
-
-
-### STAGE 6: MULTI-CAMERA FUSION
-
-**Goal:**
-Create one unified 3D representation.
-
-**Tasks:**
-
-- Transform each point cloud to world coordinates.
-- Verify spatial alignment.
-- Merge point clouds.
-- Remove duplicates/redundant points.
-- Apply filtering.
-- Test registration/ICP where necessary.
-
-**Deliverable:**
-Unified reconstructed point cloud.
-
-
-### STAGE 7: POINT CLOUD OPTIMIZATION
-
-**Goal:**
-Reduce computational and visual complexity.
-
-**Tasks:**
-
-- Statistical/radius outlier removal.
-- Voxel downsampling.
-- Density reduction.
-- Remove unnecessary background points.
-- Benchmark processing time.
-
-**Deliverable:**
-Lightweight and cleaner reconstructed environment.
-
-
-### STAGE 8: SIMPLE 3D SCENE REPRESENTATION
-
-**Goal:**
-Move from raw points toward simplified geometry.
-
-**Tasks:**
-
-- Detect dominant planes.
-- Identify floor/walls.
-- Fit basic geometric primitives.
-- Convert suitable regions into boxes/cylinders/planes.
-- Store scene objects in structured format.
-
-Example scene representation:
-
+```json
 {
-"objects": [
-{
-"type": "box",
-"position": [x, y, z],
-"scale": [width, height, depth]
+  "objects": [
+    {
+      "id": "wall_north",
+      "class": "wall",
+      "position": [0.0, 2.0, 5.0],
+      "dimensions": [10.0, 4.0, 0.2],
+      "orientation": [0.0, 0.0, 0.0],
+      "color": [1.0, 0.0, 0.0],
+      "confidence": 0.96
+    },
+    {
+      "id": "object_001",
+      "class": "cube",
+      "position": [0.0, 0.5, 0.0],
+      "dimensions": [1.0, 1.0, 1.0],
+      "orientation": [0.0, 0.0, 0.0],
+      "color": [0.2, 0.5, 0.9],
+      "confidence": 0.91
+    }
+  ]
 }
-]
-}
+```
 
-**Deliverable:**
-Simplified 3D scene representation.
+The values are examples only, not fixed scene dimensions or measured results.
 
+---
 
-### STAGE 9: OBJECT DETECTION AND 3D LOCALIZATION
+# 9. REPRESENTATION LEVELS
 
-**Goal:**
-Add semantic information.
+| Level | Representation | Purpose | Status |
+|---|---|---|---|
+| 1 | Individual camera RGB-D observations | Capture visual and depth evidence | Completed |
+| 2 | Individual camera point clouds | Convert depth observations into 3D measurements | Completed |
+| 3 | Multi-camera fused point cloud | Combine geometric observations for inspection and analysis | Implemented and validated in the current simulation |
+| 4 | Perception outputs | Detect objects and structural regions | Next phase |
+| 5 | Structured scene description | Store object identity and estimated spatial/appearance properties | Planned |
+| 6 | Simplified generated 3D world | Rebuild the environment using inferred geometry and object information | Planned |
+| 7 | Spatial heatmap / confidence view | Visualize coverage, confidence or uncertainty | Planned |
 
-**Tasks:**
+The fused point cloud is an intermediate representation. The primary intended output of the advanced system is Level 6: a simplified generated 3D world.
 
-- Integrate YOLO or another detector.
-- Detect objects in RGB frames.
-- Associate detections with depth.
-- Estimate 3D center.
-- Estimate approximate object dimensions.
-- Track objects over time if required.
+---
 
-**Deliverable:**
-Semantic 3D object representation.
+# 10. PROJECT DEVELOPMENT STAGES
 
+## Stage 0: Project Foundation — Completed
 
-### STAGE 10: REAL-TIME PIPELINE
+Set up Unity, Python, required libraries, project structure and development environment.
 
-**Goal:**
-Process continuous camera data.
+## Stage 1: Unity Simulation Environment — Completed for the current test scene
 
-**Tasks:**
+Create the room and environment elements; add walls and objects; configure North, East, South and West cameras; establish camera IDs and directional conventions; and configure resolution and field of view.
 
-- Replace file-based input with streaming.
-- Implement frame queues.
-- Process cameras continuously.
-- Avoid blocking the viewer.
-- Add timestamps.
-- Measure end-to-end latency.
-- Optimize bottlenecks.
-- Control reconstruction update frequency.
+## Stage 2: RGB-D Camera Output — Completed and tested
 
-**Deliverable:**
-Near-real-time reconstruction pipeline.
+Capture RGB and depth frames; capture camera position, orientation and direction vectors; transmit camera settings; and verify frame dimensions and depth values.
 
+## Stage 3: Python Data Reception — Completed
 
-### STAGE 11: 3D VIEWER
+Implement WebSocket communication; receive metadata and RGB/depth payloads; decode and validate frames; and associate data with the correct camera ID. Continuous streaming from all four cameras has been tested.
 
-**Goal:**
-Provide an interactive visualization.
+## Stage 4: Camera Calibration and Spatial Validation — Implemented and validated for the current Unity setup
 
-**Tasks:**
+Calculate camera intrinsics; read camera extrinsics; establish coordinate conventions; validate camera positions and viewing directions; and inspect individual camera observations.
 
-- Display reconstructed environment.
-- Implement orbit/rotation.
-- Implement zoom.
-- Implement pan.
-- Implement free camera movement.
-- Update scene continuously.
-- Avoid selection/manipulation actions.
-- Display optional object labels.
+## Stage 5: RGB-D to Point Cloud — Completed and tested
 
-**Deliverable:**
-Interactive 3D reconstruction viewer.
+Interpret depth values in metric units; project image pixels into camera-space coordinates; attach RGB colors; filter invalid depth; generate per-camera point clouds; and inspect individual clouds.
 
+## Stage 6: Multi-Camera Fusion — Implemented and validated in the current Unity test environment
 
-### STAGE 12: PERFORMANCE AND TESTING
+Use camera calibration and spatial information to relate observations, combine point clouds, preserve color information and inspect the fused result for spatial consistency.
 
-**Goal:**
-Validate the system.
+## Stage 7: Real-Time Monitoring Dashboard — Current two-panel functionality implemented and tested
 
-**Tasks:**
+Maintain the latest available frame from each camera; process incoming frames continuously; update the four camera-feed views and fused point-cloud view; organize the interface into a 2×2 layout; and reserve the remaining two panels for future outputs.
 
-- Measure FPS.
-- Measure reconstruction update rate.
-- Measure latency.
-- Measure point count.
-- Measure CPU/GPU utilization.
-- Test different scene sizes.
-- Test camera configurations.
-- Test moving objects.
-- Test temporary frame loss.
-- Compare reconstructed and original scene geometry.
+## Stage 8: Object and Structural Perception — Next major development phase
 
-**Deliverable:**
-Performance and evaluation report.
+Select suitable detection and segmentation approaches; detect objects in RGB frames; identify major structures such as floors and walls; associate detections with depth; extract geometric evidence; estimate positions, dimensions, orientations and representative colors; and record confidence or quality information.
 
+## Stage 9: Multi-Camera Scene Understanding — Planned
 
-### STAGE 13: PHYSICAL CAMERA READINESS
+Associate the same object across camera views; remove duplicate hypotheses; combine geometric estimates; resolve conflicting estimates; maintain object identities across updates where feasible; and build a structured scene description.
 
-Future stage.
+## Stage 10: Simplified 3D World Generation — Planned
 
-**Goal:**
-Prepare the architecture for real-world cameras.
+Define the scene-description data model; generate walls, floors and major structures; generate detected objects using suitable primitives; apply estimated position, dimensions, orientation and representative colors; maintain spatial relationships; and update the world when meaningful changes occur.
 
-**Tasks:**
+## Stage 11: 3D World Visualization and Heatmap — Planned
 
-- Define camera interface abstraction.
-- Replace Unity camera source with physical camera source.
-- Perform real camera calibration.
-- Synchronize physical cameras.
-- Handle camera noise.
-- Handle lighting changes.
-- Test depth estimation if depth cameras are unavailable.
+Add the generated world to panel three; add a 3D heatmap or spatial-confidence visualization to panel four; define the heatmap's meaning and visual encoding; and update both views from the latest scene representation.
 
-**Deliverable:**
-Architecture capable of accepting physical camera feeds.
+## Stage 12: Performance, Accuracy and System Testing — Ongoing; full evaluation follows AI/world-generation implementation
 
+Measure reception, point-cloud generation, fusion, inference and world-generation times; compare generated properties with Unity ground truth; test different scene layouts, moving objects, partial frame loss, occlusion and duplicate observations; and evaluate long-run stability.
 
-## 11. MVP DEFINITION
+## Stage 13: Physical Camera Readiness — Future work
 
-The Minimum Viable Prototype shall include:
+Define a camera-source abstraction; integrate physical RGB-D cameras where available; calibrate and synchronize real cameras; handle sensor noise, lighting changes and missing depth; and evaluate the pipeline outside Unity.
 
-1. Unity scene.
-2. Four virtual cameras.
-3. RGB and depth output.
-4. Python input pipeline.
-5. Camera parameters.
-6. RGB-D to 3D conversion.
-7. Four point clouds.
-8. Common coordinate transformation.
-9. Unified point cloud.
-10. Basic filtering/downsampling.
-11. Open3D visualization.
-12. Rotate, zoom and pan controls.
+---
 
-The MVP does NOT require:
+# 11. CURRENT IMPLEMENTATION STATUS
 
-- YOLO.
-- Full object recognition.
-- Primitive reconstruction.
-- Physical cameras.
-- IoT devices.
-- Photorealistic mesh generation.
-- Advanced tracking.
+| Component | Current status | Notes |
+|---|---|---|
+| Unity test environment | Completed | Simulated room and camera arrangement |
+| Four virtual cameras | Completed | North 0, East 1, South 2, West 3 |
+| RGB capture | Completed | Camera frames are streamed |
+| Depth capture | Completed | Metric depth is available to Python |
+| Camera metadata | Completed | Position, orientation/direction, resolution and FOV |
+| WebSocket streaming | Completed | Continuous Unity-to-Python communication |
+| Python frame receiver | Completed | Frames are decoded and associated by camera ID |
+| Camera intrinsics | Completed | Calculated from configured camera parameters |
+| Camera spatial calibration | Validated | Tested with the current Unity setup |
+| Per-camera point clouds | Completed | Generated from RGB-D data |
+| Multi-camera point-cloud fusion | Implemented and validated | Used as an intermediate geometric representation |
+| Real-time camera display | Completed | Four feeds in the dashboard |
+| Real-time fused point-cloud display | Completed | Second active dashboard panel |
+| Object detection | Not started | Next development phase |
+| Structural detection | Not started | Next development phase |
+| 3D property estimation | Not started | Requires perception and geometric analysis |
+| Multi-camera object association | Not started | Required for consistent scene understanding |
+| Structured scene representation | Not started | To be designed |
+| Simplified world generation | Not started | Main upcoming reconstruction milestone |
+| 3D-world heatmap | Not started | Future dashboard panel |
 
+**Status interpretation:** The current foundation demonstrates that the system can receive continuous multi-camera RGB-D data and generate/update a fused point-cloud representation in real time in the tested Unity environment. This does not mean semantic scene understanding or final simplified-world generation is already complete.
 
-## 12. ADVANCED VERSION
+---
 
-After the MVP, the following features can be added:
+# 12. MVP AND TARGET OUTPUT
 
-- YOLO-based object detection.
-- 3D object localization.
-- Object tracking.
-- Primitive fitting.
-- Voxel-based reconstruction.
-- Mesh generation.
-- Temporal consistency.
-- Dynamic-object handling.
-- Better registration.
-- GPU acceleration.
-- Real camera support.
-- RGB-only depth estimation.
-- Web-based 3D viewer.
-- Scene history.
-- Environment change detection.
-- Machine monitoring.
-- Alert generation.
+## 12.1 Completed Foundation Milestone
 
+1. Unity scene with four virtual cameras.
+2. RGB and depth output.
+3. Camera metadata transmission.
+4. Continuous WebSocket streaming.
+5. Python frame reception and decoding.
+6. Camera calibration and spatial handling.
+7. Per-camera point-cloud generation.
+8. Multi-camera point-cloud fusion.
+9. Live four-camera feed display.
+10. Live fused point-cloud display.
 
-## 13. USER INTERFACE REQUIREMENTS
+## 12.2 Intended Functional Prototype
 
-The viewer should provide:
+1. All completed foundation capabilities.
+2. Object and structural detection.
+3. Depth-based geometric property estimation.
+4. Multi-camera observation association.
+5. Structured scene representation.
+6. Simplified 3D world generation.
+7. Representative object colors and approximate geometry.
+8. Continuous updates to the generated world.
+9. Four-panel dashboard: camera feeds, fused point cloud, generated simplified 3D world and 3D spatial heatmap.
 
-- Main 3D viewport.
-- Orbit camera.
-- Zoom control.
-- Pan control.
-- Reset viewpoint.
-- Optional FPS display.
-- Optional reconstruction update rate.
-- Optional point count.
-- Optional detected-object information.
+The final prototype does not require photorealistic output, perfect texture reproduction or support for every object category.
 
-The interface should prioritize visualization and should not expose physical control functionality.
+---
 
+# 13. USER INTERFACE REQUIREMENTS
 
-## 14. PERFORMANCE REQUIREMENTS
+The monitoring application shall use one window with a 2×2 grid.
 
-The prototype should attempt to achieve:
+| Panel | Intended display | Current state |
+|---|---|---|
+| Top-left | Four live camera feeds | Active |
+| Top-right | Fused point cloud | Active |
+| Bottom-left | Generated simplified 3D world | Reserved |
+| Bottom-right | 3D-world heatmap | Reserved |
 
-- Four-camera input support.
-- Continuous camera processing.
-- Reconstruction update rate of approximately 5-10 updates/sec where feasible.
-- Viewer rendering of approximately 30-60 FPS where feasible.
-- Low enough latency to make environment changes visually understandable.
-- Scalable point-cloud density.
+The interface should make it possible to inspect camera connection status, latest frame ID or timestamp, processing/update rate, point count, detected-object count (when available), world-generation status and errors or unavailable camera feeds.
 
-Performance should be measured rather than assumed.
+The viewer is intended for monitoring and inspection. Object manipulation and physical control are not part of the current scope.
 
+---
 
-## 15. TESTING REQUIREMENTS
+# 14. PERFORMANCE AND EVALUATION REQUIREMENTS
 
-### 15.1 Unit Testing
+Performance shall be measured on the actual development hardware. Important measurements include:
 
-Test:
+- Per-camera frame reception rate.
+- RGB-D decoding time.
+- Per-camera point-cloud generation time.
+- Multi-camera fusion time.
+- AI inference time per frame or processing cycle.
+- Scene-understanding and object-association time.
+- World-generation update time.
+- End-to-end observation-to-display latency.
+- Number of points and detected objects.
+- CPU and GPU utilization.
+- Stability during continuous operation.
 
-- Depth conversion.
-- Coordinate transformation.
-- Point generation.
-- Filtering.
-- Voxelization.
-- Scene-data serialization.
+The system should prioritize a stable, understandable update of the generated world over processing every incoming camera frame through every AI stage. Camera reception, AI inference, world generation and visualization may operate at different update rates if required.
 
-### 15.2 Integration Testing
+Accuracy evaluation should compare estimated scene properties against known Unity ground truth where available. Relevant measurements include object position error, dimension/scale error, orientation error, wall/plane position error, object classification accuracy, duplicate or missed object rate, and temporal stability of generated objects.
 
-Test:
+No unmeasured accuracy or FPS value shall be treated as a guaranteed system result.
 
-- Unity to Python communication.
-- Four-camera input.
-- RGB-D processing.
-- Point-cloud fusion.
-- Viewer update.
+---
 
-### 15.3 Reconstruction Testing
+# 15. TESTING REQUIREMENTS
 
-Test:
+## 15.1 Camera and Streaming Tests
 
-- Static environment.
-- Different camera positions.
-- Partial camera overlap.
-- Moving objects.
-- Different object sizes.
-- Different scene complexity.
+- Verify all four camera IDs and the North/East/South/West naming convention.
+- Verify camera viewing directions.
+- Verify RGB and depth dimensions and metadata values.
+- Verify frames are associated with the correct camera.
+- Verify continuous streaming and recovery from temporary disconnects.
 
-### 15.4 Performance Testing
+## 15.2 Point-cloud Tests
 
-Measure:
+- Verify depth-to-3D projection and camera intrinsics.
+- Verify camera-space point-cloud geometry.
+- Verify spatial placement using camera metadata.
+- Verify color association and multi-camera fusion.
+- Inspect individual camera observations and the fused result.
 
-- Input FPS.
-- Processing time per camera.
-- Fusion time.
-- Visualization FPS.
-- Memory usage.
-- CPU usage.
-- GPU usage.
-- End-to-end latency.
+## 15.3 AI Perception Tests
 
-### 15.5 Failure Testing
+- Test object detection under different viewpoints and partial occlusion.
+- Test depth association and structural detection.
+- Compare estimated dimensions and positions with Unity ground truth.
+- Measure false detections and missed detections.
 
-Test:
+## 15.4 World Generation Tests
 
-- Missing camera frame.
-- Invalid depth.
-- Delayed frame.
-- Camera disconnect.
-- Corrupted data.
-- Excessive point density.
+- Verify detected structures produce expected simplified geometry.
+- Verify object positions, scales, orientations and representative colors.
+- Verify multiple camera observations do not create duplicate generated objects.
+- Verify changes in the Unity scene are reflected in the generated world.
+- Verify spatial consistency over successive updates.
 
+## 15.5 Dashboard Tests
 
-## 16. EVALUATION METRICS
+- Verify the four camera feeds update.
+- Verify the fused point cloud updates.
+- Verify the generated-world panel updates when implemented.
+- Verify the heatmap panel updates when implemented.
+- Verify slow visualization or AI processing does not unnecessarily stop frame reception.
 
-The project will be evaluated using:
+---
 
-1. Reconstruction completeness.
-2. Spatial alignment.
-3. Approximate positional accuracy.
-4. Point-cloud quality.
-5. Processing latency.
-6. Reconstruction update rate.
-7. Viewer FPS.
-8. CPU/GPU utilization.
-9. Memory usage.
-10. Stability during continuous operation.
+# 16. RISKS AND CONSIDERATIONS
 
-For the simplified representation, structural correctness is more important than fine-grained geometric accuracy.
+| Risk | Potential impact | Mitigation direction |
+|---|---|---|
+| Object occlusion | Some objects may not be visible from every camera | Combine evidence from multiple viewpoints |
+| Inaccurate depth | Incorrect size or position estimates | Validate depth and reject invalid measurements |
+| Duplicate detections | One object may be represented multiple times | Multi-camera association and duplicate resolution |
+| Conflicting camera estimates | Inconsistent object geometry | Use calibration, confidence and multi-view geometric checks |
+| AI inference latency | Delayed world updates | Optimize models and control inference frequency |
+| Changing scenes | Generated world may become unstable | Add temporal association and controlled update logic |
+| Incomplete observations | Parts of the environment may be missing | Track observation coverage and confidence |
+| High point density | Increased processing and memory usage | Filter and downsample intermediate geometry where appropriate |
 
+---
 
-## 17. RISKS AND MITIGATION
+# 17. FUTURE EXTENSIONS
 
-Risk 1:
-Four-camera point clouds do not align.
-
-Mitigation:
-Verify camera extrinsics and coordinate conventions before applying advanced registration.
-
-Risk 2:
-Depth data contains noise.
-
-Mitigation:
-Apply depth filtering, outlier removal and voxel downsampling.
-
-Risk 3:
-Real-time performance is low.
-
-Mitigation:
-Reduce image resolution, point density and reconstruction frequency; use asynchronous processing and GPU acceleration where appropriate.
-
-Risk 4:
-Data transfer becomes a bottleneck.
-
-Mitigation:
-Use compressed frames, efficient serialization and streaming rather than unnecessary file operations.
-
-Risk 5:
-Moving objects produce inconsistent reconstruction.
-
-Mitigation:
-Initially test static scenes; later introduce temporal processing and object tracking.
-
-Risk 6:
-Primitive fitting fails.
-
-Mitigation:
-Keep point-cloud representation as a valid fallback.
-
-Risk 7:
-Object detection is computationally expensive.
-
-Mitigation:
-Run detection at a lower frequency and use tracking between detections.
-
-Risk 8:
-Unity and Python coordinate systems differ.
-
-Mitigation:
-Define and document a single world-coordinate convention and implement explicit coordinate transformations.
-
-Risk 9:
-The system becomes too complex.
-
-Mitigation:
-Follow the staged development plan and validate each stage before moving to the next.
-
-
-## 18. PROJECT DIRECTORY STRUCTURE
-
-Suggested structure:
-
-Drushya/
-|
-+-- simulation/unity_simulation/
-|   +-- Assets/
-|   +-- Scenes/
-|   +-- Scripts/
-|   +-- Cameras/
-|   +-- Shaders/
-|
-+-- python_reconstruction/
-|   +-- main.py
-|   +-- config.py
-|   +-- camera/
-|   |   +-- calibration.py
-|   |   +-- transforms.py
-|   |
-|   +-- input/
-|   |   +-- stream.py
-|   |   +-- file_input.py
-|   |
-|   +-- perception/
-|   |   +-- depth.py
-|   |   +-- detection.py
-|   |
-|   +-- reconstruction/
-|   |   +-- pointcloud.py
-|   |   +-- registration.py
-|   |   +-- fusion.py
-|   |   +-- simplification.py
-|   |
-|   +-- visualization/
-|   |   +-- viewer.py
-|   |
-|   +-- utils/
-|       +-- logging.py
-|       +-- metrics.py
-|
-+-- data/
-|   +-- rgb/
-|   +-- depth/
-|   +-- calibration/
-|   +-- pointclouds/
-|   +-- scenes/
-|
-+-- docs/
-|   +-- SRS.txt
-|   +-- architecture/
-|   +-- experiments/
-|
-+-- tests/
-|
-+-- README.md
-
-
-## 19. FUTURE EXTENSION TO REAL WORLD
-
-The final architecture should follow the abstraction:
-
-Camera Source
-|
-+---- Unity Virtual Cameras
-|
-+---- Physical RGB Cameras
-|
-+---- RGB-D Cameras
-|
-+---- IP Cameras
-|
-v
-Perception Pipeline
-|
-v
-3D Reconstruction
-|
-v
-Scene Representation
-|
-v
-Visualization / Monitoring
-
-This allows the current Unity-based prototype to become the foundation for a future physical-camera system.
-
-Potential future applications include:
-
-- Machine monitoring.
-- Factory environment visualization.
-- Industrial inspection.
-- Robotics.
-- Surveillance visualization.
-- Smart environments.
-- Digital-environment monitoring.
-- Multi-camera spatial awareness.
-
-
-## 20. PROJECT MILESTONE SUMMARY
-
-Milestone 1:
-Unity scene + four cameras.
-
-Milestone 2:
-RGB/depth capture.
-
-Milestone 3:
-Python camera input.
-
-Milestone 4:
-Camera calibration and coordinate system.
-
-Milestone 5:
-RGB-D to point cloud.
-
-Milestone 6:
-Multi-camera point-cloud fusion.
-
-Milestone 7:
-Filtering and downsampling.
-
-Milestone 8:
-Simplified 3D scene.
-
-Milestone 9:
-Optional object detection and 3D localization.
-
-Milestone 10:
-Near-real-time streaming pipeline.
-
-Milestone 11:
-Interactive 3D viewer.
-
-Milestone 12:
-Performance evaluation and documentation.
-
-Milestone 13:
-Future physical-camera integration.
-
-
-## 21. FINAL EXPECTED OUTPUT
-
-The completed prototype should demonstrate the following end-to-end workflow:
-
-Simulated Real World
-|
-v
-+----------------+
-| Unity Scene    |
-+----------------+
-|
-Four Cameras
-|
-v
-RGB + Depth Data
-|
-v
-+----------------+
-| Python         |
-| Perception     |
-+----------------+
-|
-v
-Individual 3D
-Point Clouds
-|
-v
-Coordinate
-Transformation
-|
-v
-Multi-Camera
-Fusion
-|
-v
-Filtering /
-Simplification
-|
-v
-Approximate 3D
-Environment
-|
-v
-+----------------+
-| 3D Viewer      |
-| Rotate         |
-| Zoom           |
-| Pan            |
-+----------------+
-
-The final prototype is considered successful when a Unity environment observed by four virtual cameras can be converted into a coherent simplified 3D representation in Python and displayed interactively with acceptable near-real-time performance.
-
-## 22. CONCLUSION
-
-This project establishes a modular foundation for converting multi-camera observations into a simplified 3D representation of an environment.
-
-The development strategy intentionally begins with a controlled Unity simulation and RGB-D data. This reduces the complexity of physical camera calibration, sensor noise and hardware integration while allowing the core perception and reconstruction pipeline to be developed and tested.
-
-The project will progress from individual point clouds to multi-camera fusion and eventually toward simplified semantic 3D scenes. Object detection, real-time streaming and physical-camera integration will be added only after the core reconstruction pipeline is validated.
-
-The architecture is therefore designed not as a complete digital twin system, but as a practical prototype of the perception and visualization subsystem that can later become part of a larger real-world monitoring, robotics or industrial environment system.
-
-END OF SRS
+Potential extensions beyond the intended prototype include additional camera support, physical RGB-D camera integration, RGB-only depth estimation, advanced segmentation, improved multi-object tracking, temporal scene consistency, change detection, confidence-aware reconstruction, better handling of dynamic objects, mesh generation for selected objects, web-based 3D visualization, scene history and environment-monitoring alerts.
+
+These are future possibilities and are not mandatory requirements for the current development milestone.
+
+---
+
+# 18. CONCLUSION
+
+The first major milestone of Drushya establishes a working real-time multi-camera perception foundation. Unity supplies RGB-D observations and camera metadata; Python receives the streams, generates per-camera point clouds, combines the observations and displays the live camera feeds and fused point cloud.
+
+The next major milestone is not to make the point cloud increasingly detailed. It is to interpret the information contained in the observations and use it to construct a separate, simplified 3D representation of the environment.
+
+Drushya will therefore progress from **camera observations**, to **scene understanding**, to **structured spatial information**, and finally to **independent simplified world generation**. The final generated world should be cleaner and easier to interpret than the raw observations while preserving the important geometry and spatial relationships of the source environment.
